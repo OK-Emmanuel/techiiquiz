@@ -46,18 +46,18 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 
 ### Deliverables
 - [ ] Database migrations run on plugin activation
-- [ ] Admin menus and CRUD for courses/sets/questions
+- [x] Admin menus and CRUD for courses/sets/questions
 - [ ] Basic import staging screen available
 
 ### Execution Tasks
 - [x] Implement activator/deactivator classes
 - [x] Create schema for required custom tables
-- [ ] Build admin page: Courses
-- [ ] Build admin page: Sets (day/mode)
-- [ ] Build admin page: Question bank
-- [ ] Add validation: exactly one correct choice per question
-- [ ] Add validation: minimum required choices per question
-- [ ] Add capability checks (`manage_options` or custom capabilities)
+- [x] Build admin page: Courses
+- [x] Build admin page: Sets (day/mode)
+- [x] Build admin page: Question bank
+- [x] Add validation: exactly one correct choice per question
+- [x] Add validation: minimum required choices per question
+- [x] Add capability checks (`manage_options` or custom capabilities)
 
 ### Exit Criteria
 - [ ] Admin can create and preview a complete quiz set manually
@@ -205,3 +205,4 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Content import format signed off by content team
 - [ ] Launch date agreed
 - [x] Initial core domain implemented (bootstrap, DB schema, REST, shortcode runtime); Phase 1 admin CRUD and full review UX remain open
+- [x] Admin CRUD implemented for Courses, Sets, and Question Bank with branded red/blue admin styling

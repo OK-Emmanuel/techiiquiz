@@ -100,6 +100,264 @@ class TQ_DB {
         }
     }
 
+    public function get_courses() {
+        global $wpdb;
+        return $wpdb->get_results(
+            "SELECT * FROM {$this->table( 'courses' )} ORDER BY title ASC",
+            ARRAY_A
+        );
+    }
+
+    public function get_course( $course_id ) {
+        global $wpdb;
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'courses' )} WHERE id = %d",
+                $course_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_course( $slug, $title, $active ) {
+        global $wpdb;
+
+        return $wpdb->insert(
+            $this->table( 'courses' ),
+            array(
+                'slug'   => sanitize_title( $slug ),
+                'title'  => sanitize_text_field( $title ),
+                'active' => $active ? 1 : 0,
+            ),
+            array( '%s', '%s', '%d' )
+        );
+    }
+
+    public function update_course( $course_id, $slug, $title, $active ) {
+        global $wpdb;
+
+        return $wpdb->update(
+            $this->table( 'courses' ),
+            array(
+                'slug'   => sanitize_title( $slug ),
+                'title'  => sanitize_text_field( $title ),
+                'active' => $active ? 1 : 0,
+            ),
+            array( 'id' => (int) $course_id ),
+            array( '%s', '%s', '%d' ),
+            array( '%d' )
+        );
+    }
+
+    public function delete_course( $course_id ) {
+        global $wpdb;
+        return $wpdb->delete(
+            $this->table( 'courses' ),
+            array( 'id' => (int) $course_id ),
+            array( '%d' )
+        );
+    }
+
+    public function get_sets() {
+        global $wpdb;
+        return $wpdb->get_results(
+            "SELECT s.*, c.title AS course_title
+             FROM {$this->table( 'sets' )} s
+             LEFT JOIN {$this->table( 'courses' )} c ON c.id = s.course_id
+             ORDER BY s.id DESC",
+            ARRAY_A
+        );
+    }
+
+    public function get_set( $set_id ) {
+        global $wpdb;
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'sets' )} WHERE id = %d",
+                $set_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_set( $data ) {
+        global $wpdb;
+
+        $inserted = $wpdb->insert(
+            $this->table( 'sets' ),
+            array(
+                'course_id'      => (int) $data['course_id'],
+                'day_label'      => sanitize_text_field( $data['day_label'] ),
+                'mode'           => sanitize_key( $data['mode'] ),
+                'title'          => sanitize_text_field( $data['title'] ),
+                'question_count' => (int) $data['question_count'],
+                'version'        => (int) $data['version'],
+                'active'         => ! empty( $data['active'] ) ? 1 : 0,
+            ),
+            array( '%d', '%s', '%s', '%s', '%d', '%d', '%d' )
+        );
+
+        if ( ! $inserted ) {
+            return 0;
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    public function update_set( $set_id, $data ) {
+        global $wpdb;
+
+        return $wpdb->update(
+            $this->table( 'sets' ),
+            array(
+                'course_id'      => (int) $data['course_id'],
+                'day_label'      => sanitize_text_field( $data['day_label'] ),
+                'mode'           => sanitize_key( $data['mode'] ),
+                'title'          => sanitize_text_field( $data['title'] ),
+                'question_count' => (int) $data['question_count'],
+                'version'        => (int) $data['version'],
+                'active'         => ! empty( $data['active'] ) ? 1 : 0,
+            ),
+            array( 'id' => (int) $set_id ),
+            array( '%d', '%s', '%s', '%s', '%d', '%d', '%d' ),
+            array( '%d' )
+        );
+    }
+
+    public function delete_set( $set_id ) {
+        global $wpdb;
+        return $wpdb->delete(
+            $this->table( 'sets' ),
+            array( 'id' => (int) $set_id ),
+            array( '%d' )
+        );
+    }
+
+    public function get_questions_for_admin( $set_id ) {
+        global $wpdb;
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'questions' )} WHERE set_id = %d ORDER BY display_order ASC",
+                $set_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function get_choices_by_question( $question_id ) {
+        global $wpdb;
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'choices' )} WHERE question_id = %d ORDER BY id ASC",
+                $question_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_question( $data ) {
+        global $wpdb;
+
+        $inserted = $wpdb->insert(
+            $this->table( 'questions' ),
+            array(
+                'set_id'        => (int) $data['set_id'],
+                'question_type' => sanitize_key( $data['question_type'] ),
+                'prompt'        => wp_kses_post( $data['prompt'] ),
+                'prompt_format' => sanitize_key( $data['prompt_format'] ),
+                'prompt_meta'   => isset( $data['prompt_meta'] ) ? wp_json_encode( $data['prompt_meta'] ) : null,
+                'explanation'   => wp_kses_post( $data['explanation'] ),
+                'display_order' => (int) $data['display_order'],
+                'active'        => ! empty( $data['active'] ) ? 1 : 0,
+            ),
+            array( '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d' )
+        );
+
+        if ( ! $inserted ) {
+            return 0;
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    public function update_question( $question_id, $data ) {
+        global $wpdb;
+
+        return $wpdb->update(
+            $this->table( 'questions' ),
+            array(
+                'question_type' => sanitize_key( $data['question_type'] ),
+                'prompt'        => wp_kses_post( $data['prompt'] ),
+                'prompt_format' => sanitize_key( $data['prompt_format'] ),
+                'explanation'   => wp_kses_post( $data['explanation'] ),
+                'display_order' => (int) $data['display_order'],
+                'active'        => ! empty( $data['active'] ) ? 1 : 0,
+            ),
+            array( 'id' => (int) $question_id ),
+            array( '%s', '%s', '%s', '%s', '%d', '%d' ),
+            array( '%d' )
+        );
+    }
+
+    public function delete_question( $question_id ) {
+        global $wpdb;
+        $wpdb->delete(
+            $this->table( 'choices' ),
+            array( 'question_id' => (int) $question_id ),
+            array( '%d' )
+        );
+
+        return $wpdb->delete(
+            $this->table( 'questions' ),
+            array( 'id' => (int) $question_id ),
+            array( '%d' )
+        );
+    }
+
+    public function replace_question_choices( $question_id, $choices, $correct_choice_key ) {
+        global $wpdb;
+
+        $wpdb->delete(
+            $this->table( 'choices' ),
+            array( 'question_id' => (int) $question_id ),
+            array( '%d' )
+        );
+
+        foreach ( $choices as $key => $text ) {
+            $wpdb->insert(
+                $this->table( 'choices' ),
+                array(
+                    'question_id' => (int) $question_id,
+                    'choice_key'  => sanitize_text_field( $key ),
+                    'choice_text' => wp_kses_post( $text ),
+                    'is_correct'  => $key === $correct_choice_key ? 1 : 0,
+                ),
+                array( '%d', '%s', '%s', '%d' )
+            );
+        }
+    }
+
+    public function sync_set_question_count( $set_id ) {
+        global $wpdb;
+
+        $count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table( 'questions' )} WHERE set_id = %d",
+                $set_id
+            )
+        );
+
+        $wpdb->update(
+            $this->table( 'sets' ),
+            array( 'question_count' => $count ),
+            array( 'id' => (int) $set_id ),
+            array( '%d' ),
+            array( '%d' )
+        );
+
+        return $count;
+    }
+
     public function get_set_questions( $set_id ) {
         global $wpdb;
 

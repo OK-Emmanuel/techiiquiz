@@ -4,6 +4,10 @@
 
 - Plugin bootstrap with activation hook
 - Custom DB schema for quiz domain
+- Admin module:
+  - Courses CRUD
+  - Sets CRUD
+  - Question Bank CRUD (including choices and correct-answer selection)
 - Core services:
   - quiz payload and answer evaluation
   - session lifecycle and practice scoring
@@ -27,4 +31,4 @@ Both types are objective radio-button questions at runtime.
 
 ## Next suggested step
 
-Implement admin CRUD + import pipeline for Excel (including two-sheet mapping).
+Implement importer pipeline for Excel (including two-sheet mapping and validation report).

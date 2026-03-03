@@ -22,6 +22,7 @@ require_once TQ_PLUGIN_DIR . 'includes/class-tq-session-service.php';
 require_once TQ_PLUGIN_DIR . 'includes/class-tq-rest.php';
 require_once TQ_PLUGIN_DIR . 'public/class-tq-assets.php';
 require_once TQ_PLUGIN_DIR . 'public/class-tq-shortcodes.php';
+require_once TQ_PLUGIN_DIR . 'admin/class-tq-admin-menu.php';
 
 register_activation_hook( __FILE__, array( 'TQ_Activator', 'activate' ) );
 
@@ -34,5 +35,6 @@ add_action(
         ( new TQ_REST( $quiz_service, $session_service ) )->register();
         ( new TQ_Assets() )->register();
         ( new TQ_Shortcodes() )->register();
+        ( new TQ_Admin_Menu( new TQ_DB() ) )->register();
     }
 );
