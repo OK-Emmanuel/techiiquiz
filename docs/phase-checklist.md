@@ -5,6 +5,12 @@ Based on: `docs/implementation-plan.md`
 
 Use this document as the working execution tracker. Mark checkboxes as work completes.
 
+## Checklist Governance Rule (Mandatory)
+
+- [x] Rule acknowledged: every implemented feature must update this checklist in the same change set
+- [x] Rule acknowledged: only fully completed tasks are checked; partial work keeps exit criteria unchecked
+- [x] Rule acknowledged: scope/assumption changes are recorded under Notes / Risks / Decisions
+
 ## Overall Progress
 
 - [ ] Phase 0 complete
@@ -44,8 +50,8 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Basic import staging screen available
 
 ### Execution Tasks
-- [ ] Implement activator/deactivator classes
-- [ ] Create schema for required custom tables
+- [x] Implement activator/deactivator classes
+- [x] Create schema for required custom tables
 - [ ] Build admin page: Courses
 - [ ] Build admin page: Sets (day/mode)
 - [ ] Build admin page: Question bank
@@ -93,13 +99,13 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Accurate scoring and review rendering
 
 ### Execution Tasks
-- [ ] Implement protected shortcode route for Study mode
-- [ ] Implement protected shortcode route for Practice mode
-- [ ] Study mode: evaluate answer attempts per question
-- [ ] Study mode: block next question until correct answer selected
-- [ ] Practice mode: store answers without immediate correctness feedback
-- [ ] Practice mode: compute final score at completion
-- [ ] Practice mode: generate missed-question review list
+- [x] Implement protected shortcode route for Study mode
+- [x] Implement protected shortcode route for Practice mode
+- [x] Study mode: evaluate answer attempts per question
+- [x] Study mode: block next question until correct answer selected
+- [x] Practice mode: store answers without immediate correctness feedback
+- [x] Practice mode: compute final score at completion
+- [x] Practice mode: generate missed-question review list
 - [ ] Review mode: mark student incorrect selection with X
 - [ ] Review mode: emphasize correct option
 - [ ] Persist progress for interrupted sessions
@@ -198,3 +204,4 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Entitlement mapping approved by business owner
 - [ ] Content import format signed off by content team
 - [ ] Launch date agreed
+- [x] Initial core domain implemented (bootstrap, DB schema, REST, shortcode runtime); Phase 1 admin CRUD and full review UX remain open
