@@ -20,6 +20,7 @@ require_once TQ_PLUGIN_DIR . 'includes/class-tq-activator.php';
 require_once TQ_PLUGIN_DIR . 'includes/class-tq-quiz-service.php';
 require_once TQ_PLUGIN_DIR . 'includes/class-tq-session-service.php';
 require_once TQ_PLUGIN_DIR . 'includes/class-tq-rest.php';
+require_once TQ_PLUGIN_DIR . 'includes/class-tq-import-service.php';
 require_once TQ_PLUGIN_DIR . 'public/class-tq-assets.php';
 require_once TQ_PLUGIN_DIR . 'public/class-tq-shortcodes.php';
 require_once TQ_PLUGIN_DIR . 'admin/class-tq-admin-menu.php';

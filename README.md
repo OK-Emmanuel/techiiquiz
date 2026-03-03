@@ -8,6 +8,12 @@
   - Courses CRUD
   - Sets CRUD
   - Question Bank CRUD (including choices and correct-answer selection)
+- Importer module:
+  - Admin importer screen with file upload
+  - Dry-run validation mode
+  - Upsert by `(set + display_order)`
+  - CSV import supported by default
+  - XLSX/XLS import supported when PhpSpreadsheet is available
 - Core services:
   - quiz payload and answer evaluation
   - session lifecycle and practice scoring
@@ -31,4 +37,4 @@ Both types are objective radio-button questions at runtime.
 
 ## Next suggested step
 
-Implement importer pipeline for Excel (including two-sheet mapping and validation report).
+Implement persistent import history/logging, then finalize review-mode UX enhancements.

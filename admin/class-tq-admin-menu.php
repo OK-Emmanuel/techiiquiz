@@ -6,9 +6,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class TQ_Admin_Menu {
     private $db;
+    private $import_service;
 
     public function __construct( TQ_DB $db ) {
-        $this->db = $db;
+        $this->db             = $db;
+        $this->import_service = new TQ_Import_Service( $db );
     }
 
     public function register() {
@@ -20,6 +22,7 @@ class TQ_Admin_Menu {
         add_action( 'admin_post_tq_delete_set', array( $this, 'delete_set' ) );
         add_action( 'admin_post_tq_save_question', array( $this, 'save_question' ) );
         add_action( 'admin_post_tq_delete_question', array( $this, 'delete_question' ) );
+        add_action( 'admin_post_tq_run_import', array( $this, 'run_import' ) );
     }
 
     public function add_menu() {
@@ -58,6 +61,15 @@ class TQ_Admin_Menu {
             'manage_options',
             'tq-questions',
             array( $this, 'render_questions_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Importer',
+            'Importer',
+            'manage_options',
+            'tq-importer',
+            array( $this, 'render_importer_page' )
         );
     }
 
@@ -324,6 +336,55 @@ class TQ_Admin_Menu {
         echo '</div>';
     }
 
+    public function render_importer_page() {
+        $this->assert_admin();
+
+        $report_key = 'tq_import_report_' . get_current_user_id();
+        $report     = get_transient( $report_key );
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">TechiQuiz Importer</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width: 860px;">';
+        echo '<h2>Import Questions (CSV / XLSX / XLS)</h2>';
+        echo '<p>Use dry-run first to validate rows before writing to the database.</p>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" enctype="multipart/form-data">';
+        wp_nonce_field( 'tq_run_import' );
+        echo '<input type="hidden" name="action" value="tq_run_import" />';
+        echo '<p><label>File</label><input type="file" name="quiz_file" accept=".csv,.xlsx,.xls" required /></p>';
+        echo '<p><label><input type="checkbox" name="dry_run" value="1" checked /> Dry run (no database changes)</label></p>';
+        echo '<p><label><input type="checkbox" name="upsert" value="1" /> Upsert existing question rows by (set + display_order)</label></p>';
+        submit_button( 'Run Import', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+
+        if ( ! empty( $report ) && is_array( $report ) ) {
+            echo '<div class="tq-card" style="max-width: 860px; margin-top: 16px;">';
+            echo '<h2>Last Import Report</h2>';
+            echo '<ul>';
+            echo '<li><strong>Mode:</strong> ' . esc_html( ! empty( $report['dry_run'] ) ? 'Dry Run' : 'Write' ) . '</li>';
+            echo '<li><strong>Created:</strong> ' . esc_html( (string) ( $report['created'] ?? 0 ) ) . '</li>';
+            echo '<li><strong>Updated:</strong> ' . esc_html( (string) ( $report['updated'] ?? 0 ) ) . '</li>';
+            echo '<li><strong>Failed:</strong> ' . esc_html( (string) ( $report['failed'] ?? 0 ) ) . '</li>';
+            echo '</ul>';
+
+            if ( ! empty( $report['errors'] ) ) {
+                echo '<h3>Errors</h3>';
+                echo '<div style="max-height:240px;overflow:auto;border:1px solid #ddd;padding:8px;background:#fff;">';
+                foreach ( $report['errors'] as $error ) {
+                    echo '<p style="margin:6px 0;color:#b91c1c;">' . esc_html( $error ) . '</p>';
+                }
+                echo '</div>';
+            }
+
+            echo '</div>';
+            delete_transient( $report_key );
+        }
+
+        echo '</div>';
+    }
+
     public function save_course() {
         $this->assert_admin();
         check_admin_referer( 'tq_save_course' );
@@ -472,6 +533,57 @@ class TQ_Admin_Menu {
         exit;
     }
 
+    public function run_import() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_run_import' );
+
+        if ( empty( $_FILES['quiz_file']['name'] ) ) {
+            $this->redirect_with_notice( 'tq-importer', 'import_missing_file' );
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+
+        $uploaded = wp_handle_upload(
+            $_FILES['quiz_file'],
+            array(
+                'test_form' => false,
+                'mimes'     => array(
+                    'csv'  => 'text/csv',
+                    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'xls'  => 'application/vnd.ms-excel',
+                ),
+            )
+        );
+
+        if ( isset( $uploaded['error'] ) ) {
+            $this->redirect_with_notice( 'tq-importer', 'import_upload_error' );
+        }
+
+        $file_path = $uploaded['file'];
+        $extension = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
+        $dry_run   = isset( $_POST['dry_run'] );
+        $upsert    = isset( $_POST['upsert'] );
+
+        try {
+            $report = $this->import_service->process_file( $file_path, $extension, $dry_run, $upsert );
+            set_transient( 'tq_import_report_' . get_current_user_id(), $report, 10 * MINUTE_IN_SECONDS );
+            $this->redirect_with_notice( 'tq-importer', 'import_finished' );
+        } catch ( Exception $exception ) {
+            set_transient(
+                'tq_import_report_' . get_current_user_id(),
+                array(
+                    'dry_run' => $dry_run,
+                    'created' => 0,
+                    'updated' => 0,
+                    'failed'  => 1,
+                    'errors'  => array( $exception->getMessage() ),
+                ),
+                10 * MINUTE_IN_SECONDS
+            );
+            $this->redirect_with_notice( 'tq-importer', 'import_failed' );
+        }
+    }
+
     private function render_notice() {
         if ( empty( $_GET['notice'] ) ) {
             return;
@@ -487,6 +599,10 @@ class TQ_Admin_Menu {
             'set_deleted'      => 'Set deleted.',
             'question_saved'   => 'Question saved.',
             'question_deleted' => 'Question deleted.',
+            'import_finished'  => 'Import completed. See report below.',
+            'import_failed'    => 'Import failed. Review report below.',
+            'import_missing_file' => 'Please select a file to import.',
+            'import_upload_error' => 'Upload failed. Please try again.',
         );
 
         if ( ! isset( $labels[ $notice ] ) ) {

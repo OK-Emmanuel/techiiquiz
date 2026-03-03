@@ -47,7 +47,7 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 ### Deliverables
 - [ ] Database migrations run on plugin activation
 - [x] Admin menus and CRUD for courses/sets/questions
-- [ ] Basic import staging screen available
+- [x] Basic import staging screen available
 
 ### Execution Tasks
 - [x] Implement activator/deactivator classes
@@ -67,8 +67,8 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 ## Phase 2 — Import Pipeline (Excel to Quiz) (4–5 days)
 
 ### Deliverables
-- [ ] CSV/XLSX ingestion workflow
-- [ ] Duplicate and format validation report
+- [x] CSV/XLSX ingestion workflow
+- [x] Duplicate and format validation report
 - [ ] Import history/logging
 
 ### Execution Tasks
@@ -82,9 +82,9 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
   - [ ] `correct_choice`
   - [ ] `explanation` (optional)
   - [ ] `display_order`
-- [ ] Implement parser with dry-run validator
-- [ ] Implement upsert strategy (`set + display_order` or external key)
-- [ ] Build import summary (created / updated / failed)
+- [x] Implement parser with dry-run validator
+- [x] Implement upsert strategy (`set + display_order` or external key)
+- [x] Build import summary (created / updated / failed)
 
 ### Exit Criteria
 - [ ] Subsea and updated question bank import cleanly with zero blocker errors
@@ -206,3 +206,5 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Launch date agreed
 - [x] Initial core domain implemented (bootstrap, DB schema, REST, shortcode runtime); Phase 1 admin CRUD and full review UX remain open
 - [x] Admin CRUD implemented for Courses, Sets, and Question Bank with branded red/blue admin styling
+- [x] Importer implemented with dry-run and upsert; XLSX/XLS path requires PhpSpreadsheet dependency when used
+- [x] Git workflow rule active: create feature branches for new features and commit only stable, lint-clean checkpoints

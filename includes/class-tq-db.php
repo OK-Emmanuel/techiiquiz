@@ -119,6 +119,17 @@ class TQ_DB {
         );
     }
 
+    public function get_course_by_slug( $slug ) {
+        global $wpdb;
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'courses' )} WHERE slug = %s",
+                sanitize_title( $slug )
+            ),
+            ARRAY_A
+        );
+    }
+
     public function create_course( $slug, $title, $active ) {
         global $wpdb;
 
@@ -175,6 +186,23 @@ class TQ_DB {
             $wpdb->prepare(
                 "SELECT * FROM {$this->table( 'sets' )} WHERE id = %d",
                 $set_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function get_set_by_identity( $course_id, $title, $day_label, $mode ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'sets' )}
+                 WHERE course_id = %d AND title = %s AND day_label = %s AND mode = %s
+                 LIMIT 1",
+                $course_id,
+                sanitize_text_field( $title ),
+                sanitize_text_field( $day_label ),
+                sanitize_key( $mode )
             ),
             ARRAY_A
         );
@@ -388,6 +416,18 @@ class TQ_DB {
             $wpdb->prepare(
                 "SELECT * FROM {$this->table( 'questions' )} WHERE id = %d",
                 $question_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function get_question_by_set_and_order( $set_id, $display_order ) {
+        global $wpdb;
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'questions' )} WHERE set_id = %d AND display_order = %d LIMIT 1",
+                $set_id,
+                $display_order
             ),
             ARRAY_A
         );

@@ -46,6 +46,11 @@
   2. Place shortcode on a page and test both `study` and `practice` modes.
   3. Validate REST behavior via browser/network or `wp-json/techiquiz/v1/*` calls.
 - If behavior/architecture changes, update docs under `docs/` and `README.md` alongside code.
+- Git workflow requirement:
+  - Create a new branch for each new feature.
+  - Commit in functional intervals (small, traceable checkpoints).
+  - Keep commits clean and focused.
+  - Do not commit buggy code; lint/sanity check before commit.
 
 ## Change guidance for agents
 - Prefer minimal, surgical changes in existing classes over adding new framework layers.

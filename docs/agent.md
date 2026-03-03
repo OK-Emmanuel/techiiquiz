@@ -47,6 +47,9 @@ Primary files:
 4. Preserve objective-question reliability over UI complexity.
 5. Prioritize data integrity and scoring correctness first.
 6. Never store plain temporary passwords.
+7. For every new feature, create a dedicated git branch.
+8. Commit at functional intervals with clean, focused commit messages.
+9. Do not commit buggy code; run at least lint/manual sanity checks before committing.
 
 ## 4) Mandatory Accountability Rule (Checklist)
 
@@ -106,3 +109,4 @@ Before handing to another agent:
 2. Update `README.md` with implemented capabilities.
 3. Add/refresh any relevant doc in `docs/` for design decisions.
 4. Leave a short “next action” recommendation with dependencies/risks.
+5. Ensure branch name and commit history are clean and traceable.
