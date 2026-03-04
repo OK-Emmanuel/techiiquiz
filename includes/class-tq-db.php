@@ -95,6 +95,27 @@ class TQ_DB {
             KEY question_id (question_id)
         ) {$charset_collate};";
 
+        $sql[] = "CREATE TABLE {$this->table( 'import_logs' )} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT UNSIGNED NOT NULL,
+            source_filename VARCHAR(255) NOT NULL,
+            source_group VARCHAR(120) NULL,
+            file_extension VARCHAR(10) NOT NULL,
+            dry_run TINYINT(1) NOT NULL DEFAULT 1,
+            upsert TINYINT(1) NOT NULL DEFAULT 0,
+            created_count INT UNSIGNED NOT NULL DEFAULT 0,
+            updated_count INT UNSIGNED NOT NULL DEFAULT 0,
+            failed_count INT UNSIGNED NOT NULL DEFAULT 0,
+            status VARCHAR(20) NOT NULL DEFAULT 'success',
+            error_count INT UNSIGNED NOT NULL DEFAULT 0,
+            error_excerpt LONGTEXT NULL,
+            created_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY status (status),
+            KEY created_at (created_at)
+        ) {$charset_collate};";
+
         foreach ( $sql as $statement ) {
             dbDelta( $statement );
         }
@@ -569,6 +590,42 @@ class TQ_DB {
             $wpdb->prepare(
                 "SELECT * FROM {$this->table( 'session_answers' )} WHERE session_id = %d",
                 $session_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_import_log( $data ) {
+        global $wpdb;
+
+        return $wpdb->insert(
+            $this->table( 'import_logs' ),
+            array(
+                'user_id'         => (int) $data['user_id'],
+                'source_filename' => sanitize_file_name( $data['source_filename'] ),
+                'source_group'    => sanitize_text_field( $data['source_group'] ),
+                'file_extension'  => sanitize_text_field( $data['file_extension'] ),
+                'dry_run'         => ! empty( $data['dry_run'] ) ? 1 : 0,
+                'upsert'          => ! empty( $data['upsert'] ) ? 1 : 0,
+                'created_count'   => (int) $data['created_count'],
+                'updated_count'   => (int) $data['updated_count'],
+                'failed_count'    => (int) $data['failed_count'],
+                'status'          => sanitize_key( $data['status'] ),
+                'error_count'     => (int) $data['error_count'],
+                'error_excerpt'   => isset( $data['error_excerpt'] ) ? wp_kses_post( $data['error_excerpt'] ) : '',
+                'created_at'      => current_time( 'mysql' ),
+            ),
+            array( '%d', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s' )
+        );
+    }
+
+    public function get_import_logs( $limit = 20 ) {
+        global $wpdb;
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'import_logs' )} ORDER BY id DESC LIMIT %d",
+                $limit
             ),
             ARRAY_A
         );

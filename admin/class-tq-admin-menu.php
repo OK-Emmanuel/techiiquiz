@@ -341,6 +341,7 @@ class TQ_Admin_Menu {
 
         $report_key = 'tq_import_report_' . get_current_user_id();
         $report     = get_transient( $report_key );
+        $logs       = $this->db->get_import_logs( 20 );
 
         echo '<div class="wrap tq-admin">';
         echo '<h1 class="tq-title">TechiQuiz Importer</h1>';
@@ -387,6 +388,34 @@ class TQ_Admin_Menu {
             echo '</div>';
             delete_transient( $report_key );
         }
+
+        echo '<div class="tq-card" style="max-width: 1080px; margin-top: 16px;">';
+        echo '<h2>Import History</h2>';
+        echo '<table class="widefat striped"><thead><tr><th>Date</th><th>File</th><th>Group</th><th>Mode</th><th>Upsert</th><th>Status</th><th>Created</th><th>Updated</th><th>Failed</th><th>Errors</th></tr></thead><tbody>';
+        if ( empty( $logs ) ) {
+            echo '<tr><td colspan="10">No import history yet.</td></tr>';
+        } else {
+            foreach ( $logs as $log ) {
+                echo '<tr>';
+                echo '<td>' . esc_html( $log['created_at'] ) . '</td>';
+                echo '<td>' . esc_html( $log['source_filename'] ) . '</td>';
+                echo '<td>' . esc_html( $log['source_group'] ?: 'auto' ) . '</td>';
+                echo '<td>' . esc_html( (int) $log['dry_run'] === 1 ? 'Dry Run' : 'Write' ) . '</td>';
+                echo '<td>' . esc_html( (int) $log['upsert'] === 1 ? 'Yes' : 'No' ) . '</td>';
+                echo '<td>' . esc_html( ucfirst( $log['status'] ) ) . '</td>';
+                echo '<td>' . esc_html( $log['created_count'] ) . '</td>';
+                echo '<td>' . esc_html( $log['updated_count'] ) . '</td>';
+                echo '<td>' . esc_html( $log['failed_count'] ) . '</td>';
+                echo '<td>' . esc_html( $log['error_count'] ) . '</td>';
+                echo '</tr>';
+
+                if ( ! empty( $log['error_excerpt'] ) ) {
+                    echo '<tr><td colspan="10" style="background:#fff8f8;color:#991b1b;">' . esc_html( $log['error_excerpt'] ) . '</td></tr>';
+                }
+            }
+        }
+        echo '</tbody></table>';
+        echo '</div>';
 
         echo '</div>';
     }
@@ -583,9 +612,44 @@ class TQ_Admin_Menu {
                     'original_filename' => $original_filename,
                 )
             );
+
+            $this->db->create_import_log(
+                array(
+                    'user_id'         => get_current_user_id(),
+                    'source_filename' => $original_filename,
+                    'source_group'    => $source_group,
+                    'file_extension'  => $extension,
+                    'dry_run'         => $dry_run,
+                    'upsert'          => $upsert,
+                    'created_count'   => (int) ( $report['created'] ?? 0 ),
+                    'updated_count'   => (int) ( $report['updated'] ?? 0 ),
+                    'failed_count'    => (int) ( $report['failed'] ?? 0 ),
+                    'status'          => ( (int) ( $report['failed'] ?? 0 ) > 0 ) ? 'warning' : 'success',
+                    'error_count'     => ! empty( $report['errors'] ) ? count( $report['errors'] ) : 0,
+                    'error_excerpt'   => ! empty( $report['errors'] ) ? implode( ' | ', array_slice( $report['errors'], 0, 3 ) ) : '',
+                )
+            );
+
             set_transient( 'tq_import_report_' . get_current_user_id(), $report, 10 * MINUTE_IN_SECONDS );
             $this->redirect_with_notice( 'tq-importer', 'import_finished' );
         } catch ( Exception $exception ) {
+            $this->db->create_import_log(
+                array(
+                    'user_id'         => get_current_user_id(),
+                    'source_filename' => $original_filename,
+                    'source_group'    => $source_group,
+                    'file_extension'  => $extension,
+                    'dry_run'         => $dry_run,
+                    'upsert'          => $upsert,
+                    'created_count'   => 0,
+                    'updated_count'   => 0,
+                    'failed_count'    => 1,
+                    'status'          => 'failed',
+                    'error_count'     => 1,
+                    'error_excerpt'   => $exception->getMessage(),
+                )
+            );
+
             set_transient(
                 'tq_import_report_' . get_current_user_id(),
                 array(

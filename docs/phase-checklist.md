@@ -69,7 +69,7 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 ### Deliverables
 - [x] CSV/XLSX ingestion workflow
 - [x] Duplicate and format validation report
-- [ ] Import history/logging
+- [x] Import history/logging
 
 ### Execution Tasks
 - [ ] Freeze import template columns:
@@ -210,3 +210,4 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Git workflow rule active: create feature branches for new features and commit only stable, lint-clean checkpoints
 - [x] Flexible legacy importer mapping implemented (`Ct/CT`, variable question column, `(A)-(D)`, `Ans`) with filename/source-group metadata inference
 - [x] Importer validation now supports 2–4 choices, auto display-order fallback, and stronger math/prompt column inference
+- [x] Persistent import logs implemented with importer history table + admin history view
