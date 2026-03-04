@@ -40,7 +40,8 @@ class TQ_Import_Service {
                     $row,
                     $sheet_name,
                     $source_filename,
-                    $source_group
+                    $source_group,
+                    $index
                 );
                 $errors      = $this->validate_row( $normalized );
 
@@ -194,7 +195,7 @@ class TQ_Import_Service {
         return trim( (string) $header, '_' );
     }
 
-    private function normalize_row( $row, $sheet_name, $source_filename, $source_group ) {
+    private function normalize_row( $row, $sheet_name, $source_filename, $source_group, $row_index ) {
         $question_type = sanitize_key( (string) $this->pick_value( $row, array( 'question_type' ) ) );
 
         if ( '' === $question_type ) {
@@ -212,9 +213,13 @@ class TQ_Import_Service {
             $question_text = (string) $this->pick_value( $row, array( 'question_text', 'question', 'questions' ) );
         }
 
+        if ( '' === trim( $question_text ) ) {
+            $question_text = $this->infer_question_text_from_row( $row );
+        }
+
         $display_order = (int) $this->pick_value( $row, array( 'display_order', 'ct', 'serial_number', 'serial', 'no', 'number' ) );
         if ( $display_order <= 0 ) {
-            $display_order = 0;
+            $display_order = (int) $row_index + 1;
         }
 
         $day_label = sanitize_text_field( (string) $this->pick_value( $row, array( 'day_label', 'day' ) ) );
@@ -239,7 +244,9 @@ class TQ_Import_Service {
             $set_title = $this->derive_set_title( $question_column, $source_filename, $day_label, $mode, $course_slug );
         }
 
-        return array(
+        $correct_choice = strtoupper( sanitize_text_field( (string) $this->pick_value( $row, array( 'correct_choice', 'ans', 'answer' ) ) ) );
+
+        $normalized = array(
             'course_slug'   => $course_slug,
             'set_title'     => $set_title,
             'day_label'     => $day_label,
@@ -249,12 +256,18 @@ class TQ_Import_Service {
             'choice_b'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_b', 'b', 'option_b' ) ) ),
             'choice_c'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_c', 'c', 'option_c' ) ) ),
             'choice_d'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_d', 'd', 'option_d' ) ) ),
-            'correct_choice'=> strtoupper( sanitize_text_field( (string) $this->pick_value( $row, array( 'correct_choice', 'ans', 'answer' ) ) ) ),
+            'correct_choice'=> $correct_choice,
             'display_order' => $display_order,
             'question_type' => in_array( $question_type, array( 'single_choice', 'objective_math' ), true ) ? $question_type : 'single_choice',
             'prompt_format' => sanitize_key( (string) $this->pick_value( $row, array( 'prompt_format' ) ) ) ?: 'plain',
             'explanation'   => wp_kses_post( (string) $this->pick_value( $row, array( 'explanation' ) ) ),
         );
+
+        if ( ! in_array( $normalized['correct_choice'], array( 'A', 'B', 'C', 'D' ), true ) ) {
+            $normalized['correct_choice'] = $this->resolve_correct_choice_from_value( $normalized );
+        }
+
+        return $normalized;
     }
 
     private function pick_value( $row, $aliases ) {
@@ -303,6 +316,115 @@ class TQ_Import_Service {
         }
 
         return '';
+    }
+
+    private function infer_question_text_from_row( $row ) {
+        $skip_keys = array(
+            'ct',
+            'day',
+            'topic',
+            'spec',
+            'ident',
+            'a',
+            'b',
+            'c',
+            'd',
+            'ans',
+            'answer',
+            'form',
+            'form_answer',
+            'course_slug',
+            'set_title',
+            'day_label',
+            'mode',
+            'display_order',
+            'question_type',
+            'prompt_format',
+            'explanation',
+        );
+
+        $best_value = '';
+        $best_score = 0;
+
+        foreach ( $row as $key => $value ) {
+            if ( in_array( $key, $skip_keys, true ) ) {
+                continue;
+            }
+
+            $text = trim( (string) $value );
+            if ( '' === $text ) {
+                continue;
+            }
+
+            $score = strlen( $text );
+            if ( preg_match( '/\?|\./', $text ) ) {
+                $score += 10;
+            }
+
+            if ( $score > $best_score ) {
+                $best_score = $score;
+                $best_value = $text;
+            }
+        }
+
+        return $best_value;
+    }
+
+    private function resolve_correct_choice_from_value( $row ) {
+        $answer_value = strtoupper( trim( (string) $row['correct_choice'] ) );
+        if ( '' === $answer_value ) {
+            return '';
+        }
+
+        if ( preg_match( '/^\(?\s*([A-D])\s*\)?[\.)]?$/', $answer_value, $match ) ) {
+            return $match[1];
+        }
+
+        if ( in_array( $answer_value, array( '1', '2', '3', '4' ), true ) ) {
+            $map = array(
+                '1' => 'A',
+                '2' => 'B',
+                '3' => 'C',
+                '4' => 'D',
+            );
+
+            return $map[ $answer_value ];
+        }
+
+        $choices = array(
+            'A' => strtoupper( trim( (string) $row['choice_a'] ) ),
+            'B' => strtoupper( trim( (string) $row['choice_b'] ) ),
+            'C' => strtoupper( trim( (string) $row['choice_c'] ) ),
+            'D' => strtoupper( trim( (string) $row['choice_d'] ) ),
+        );
+
+        foreach ( $choices as $key => $choice_text ) {
+            if ( '' === $choice_text ) {
+                continue;
+            }
+
+            if ( $answer_value === $choice_text ) {
+                return $key;
+            }
+        }
+
+        return '';
+    }
+
+    private function extract_available_choices( $row ) {
+        $choices = array(
+            'A' => trim( (string) $row['choice_a'] ),
+            'B' => trim( (string) $row['choice_b'] ),
+            'C' => trim( (string) $row['choice_c'] ),
+            'D' => trim( (string) $row['choice_d'] ),
+        );
+
+        return array_filter(
+            $choices,
+            static function ( $value ) {
+                return '' !== $value;
+            }
+        );
     }
 
     private function infer_course_slug( $source_filename, $source_group ) {
@@ -381,10 +503,6 @@ class TQ_Import_Service {
             'question_text',
             'choice_a',
             'choice_b',
-            'choice_c',
-            'choice_d',
-            'correct_choice',
-            'display_order',
         );
 
         foreach ( $required_fields as $field ) {
@@ -397,8 +515,16 @@ class TQ_Import_Service {
             $errors[] = 'mode must be study or practice';
         }
 
-        if ( ! in_array( $row['correct_choice'], array( 'A', 'B', 'C', 'D' ), true ) ) {
-            $errors[] = 'correct_choice must be one of A, B, C, D';
+        $available_choices = $this->extract_available_choices( $row );
+
+        if ( count( $available_choices ) < 2 ) {
+            $errors[] = 'at least two choices are required';
+        }
+
+        if ( '' === $row['correct_choice'] ) {
+            $errors[] = 'correct_choice is required';
+        } elseif ( ! isset( $available_choices[ $row['correct_choice'] ] ) ) {
+            $errors[] = 'correct_choice must match one of the available choices';
         }
 
         if ( (int) $row['display_order'] <= 0 ) {
@@ -466,6 +592,13 @@ class TQ_Import_Service {
             'B' => $row['choice_b'],
             'C' => $row['choice_c'],
             'D' => $row['choice_d'],
+        );
+
+        $choices = array_filter(
+            $choices,
+            static function ( $value ) {
+                return '' !== trim( (string) $value );
+            }
         );
 
         if ( ! empty( $existing ) ) {

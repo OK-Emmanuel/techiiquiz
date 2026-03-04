@@ -25,6 +25,10 @@ require_once TQ_PLUGIN_DIR . 'public/class-tq-assets.php';
 require_once TQ_PLUGIN_DIR . 'public/class-tq-shortcodes.php';
 require_once TQ_PLUGIN_DIR . 'admin/class-tq-admin-menu.php';
 
+if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
 register_activation_hook( __FILE__, array( 'TQ_Activator', 'activate' ) );
 
 add_action(

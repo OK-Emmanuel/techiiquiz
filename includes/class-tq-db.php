@@ -352,6 +352,10 @@ class TQ_DB {
         );
 
         foreach ( $choices as $key => $text ) {
+            if ( '' === trim( (string) $text ) ) {
+                continue;
+            }
+
             $wpdb->insert(
                 $this->table( 'choices' ),
                 array(

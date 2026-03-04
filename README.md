@@ -16,6 +16,8 @@
   - XLSX/XLS import supported when PhpSpreadsheet is available
   - Flexible column mapping for legacy quiz files (`Ct/CT`, variable question-column names, `(A)-(D)`, `Ans`)
   - Metadata inference from filename/source-group (`mode`, `day_label`, `course_slug`, `set_title`)
+  - Dynamic choice validation supports 2, 3, or 4 options (C/D optional)
+  - Missing `display_order` auto-generated from row sequence
 - Core services:
   - quiz payload and answer evaluation
   - session lifecycle and practice scoring
