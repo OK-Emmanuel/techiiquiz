@@ -94,9 +94,9 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 ## Phase 3 — Quiz Runtime (Study + Practice) (6–8 days)
 
 ### Deliverables
-- [ ] Frontend quiz app with distinct Study and Practice modes
-- [ ] Session create/resume/complete logic
-- [ ] Accurate scoring and review rendering
+- [x] Frontend quiz app with distinct Study and Practice modes
+- [x] Session create/resume/complete logic
+- [x] Accurate scoring and review rendering
 
 ### Execution Tasks
 - [x] Implement protected shortcode route for Study mode
