@@ -353,6 +353,12 @@ class TQ_Admin_Menu {
         wp_nonce_field( 'tq_run_import' );
         echo '<input type="hidden" name="action" value="tq_run_import" />';
         echo '<p><label>File</label><input type="file" name="quiz_file" accept=".csv,.xlsx,.xls" required /></p>';
+        echo '<p><label>Source Group</label><select name="source_group">';
+        echo '<option value="">Auto detect</option>';
+        echo '<option value="subsea-questions">subsea-questions</option>';
+        echo '<option value="old-quiz">old-quiz</option>';
+        echo '<option value="updated-drill-questions">updated-drill-questions</option>';
+        echo '</select></p>';
         echo '<p><label><input type="checkbox" name="dry_run" value="1" checked /> Dry run (no database changes)</label></p>';
         echo '<p><label><input type="checkbox" name="upsert" value="1" /> Upsert existing question rows by (set + display_order)</label></p>';
         submit_button( 'Run Import', 'primary tq-btn-primary' );
@@ -563,9 +569,20 @@ class TQ_Admin_Menu {
         $extension = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
         $dry_run   = isset( $_POST['dry_run'] );
         $upsert    = isset( $_POST['upsert'] );
+        $source_group = isset( $_POST['source_group'] ) ? sanitize_title( wp_unslash( $_POST['source_group'] ) ) : '';
+        $original_filename = isset( $_FILES['quiz_file']['name'] ) ? sanitize_file_name( wp_unslash( $_FILES['quiz_file']['name'] ) ) : basename( $file_path );
 
         try {
-            $report = $this->import_service->process_file( $file_path, $extension, $dry_run, $upsert );
+            $report = $this->import_service->process_file(
+                $file_path,
+                $extension,
+                $dry_run,
+                $upsert,
+                array(
+                    'source_group'      => $source_group,
+                    'original_filename' => $original_filename,
+                )
+            );
             set_transient( 'tq_import_report_' . get_current_user_id(), $report, 10 * MINUTE_IN_SECONDS );
             $this->redirect_with_notice( 'tq-importer', 'import_finished' );
         } catch ( Exception $exception ) {

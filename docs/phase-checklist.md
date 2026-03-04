@@ -208,3 +208,4 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Admin CRUD implemented for Courses, Sets, and Question Bank with branded red/blue admin styling
 - [x] Importer implemented with dry-run and upsert; XLSX/XLS path requires PhpSpreadsheet dependency when used
 - [x] Git workflow rule active: create feature branches for new features and commit only stable, lint-clean checkpoints
+- [x] Flexible legacy importer mapping implemented (`Ct/CT`, variable question column, `(A)-(D)`, `Ans`) with filename/source-group metadata inference

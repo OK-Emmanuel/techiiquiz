@@ -22,6 +22,17 @@ Support Excel files containing:
 - `correct_choice` (`A|B|C|D`)
 - `display_order`
 
+Legacy compatibility note:
+- The importer now accepts legacy headers and maps them dynamically.
+- Example aliases:
+	- `Ct` / `CT` -> `display_order`
+	- `(A)`/`A` -> `choice_a`
+	- `(B)`/`B` -> `choice_b`
+	- `(C)`/`C` -> `choice_c`
+	- `(D)`/`D` -> `choice_d`
+	- `Ans` / `Answer` -> `correct_choice`
+	- Variable question columns containing `Question`/`Questions` -> `question_text`
+
 ## Optional fields
 
 - `question_type` (`single_choice|objective_math`)
@@ -32,6 +43,18 @@ Support Excel files containing:
 
 - Sheet names matching `math`, `calculation`, `formula` default `question_type=objective_math` when value is absent.
 - Other sheets default `question_type=single_choice`.
+
+## Filename and source-group inference
+
+- `mode`:
+	- Practice when filename pattern matches `SST`, `DST`, `DRT`, `OWOT`, `OWST`, or `<prefix>T<day>`
+	- Otherwise Study
+- `day_label`:
+	- Uses `Day` column when present
+	- Otherwise derives from first number in filename (e.g., `SS3` -> `Day 3`)
+- `course_slug`:
+	- Uses source-group selector when provided (`subsea-questions`, `old-quiz`, `updated-drill-questions`)
+	- Otherwise inferred from filename prefix
 
 ## Validation rules
 

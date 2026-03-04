@@ -14,6 +14,8 @@
   - Upsert by `(set + display_order)`
   - CSV import supported by default
   - XLSX/XLS import supported when PhpSpreadsheet is available
+  - Flexible column mapping for legacy quiz files (`Ct/CT`, variable question-column names, `(A)-(D)`, `Ans`)
+  - Metadata inference from filename/source-group (`mode`, `day_label`, `course_slug`, `set_title`)
 - Core services:
   - quiz payload and answer evaluation
   - session lifecycle and practice scoring

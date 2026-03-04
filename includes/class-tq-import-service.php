@@ -11,23 +11,37 @@ class TQ_Import_Service {
         $this->db = $db;
     }
 
-    public function process_file( $file_path, $extension, $dry_run = true, $upsert = false ) {
+    public function process_file( $file_path, $extension, $dry_run = true, $upsert = false, $context = array() ) {
         $sheets = $this->load_rows_by_sheet( $file_path, $extension );
 
+        $source_filename = isset( $context['original_filename'] ) ? (string) $context['original_filename'] : basename( (string) $file_path );
+        $source_group    = isset( $context['source_group'] ) ? sanitize_title( $context['source_group'] ) : '';
+
         $summary = array(
-            'dry_run' => $dry_run,
-            'created' => 0,
-            'updated' => 0,
-            'failed'  => 0,
-            'errors'  => array(),
+            'dry_run'         => $dry_run,
+            'created'         => 0,
+            'updated'         => 0,
+            'failed'          => 0,
+            'errors'          => array(),
+            'source_filename' => $source_filename,
+            'source_group'    => $source_group,
         );
 
         $touched_set_ids = array();
 
         foreach ( $sheets as $sheet_name => $rows ) {
             foreach ( $rows as $index => $row ) {
+                if ( $this->is_placeholder_row( $row ) ) {
+                    continue;
+                }
+
                 $line_number = $index + 2;
-                $normalized  = $this->normalize_row( $row, $sheet_name );
+                $normalized  = $this->normalize_row(
+                    $row,
+                    $sheet_name,
+                    $source_filename,
+                    $source_group
+                );
                 $errors      = $this->validate_row( $normalized );
 
                 if ( ! empty( $errors ) ) {
@@ -156,35 +170,204 @@ class TQ_Import_Service {
         return true;
     }
 
-    private function normalize_header( $header ) {
-        $header = strtolower( trim( (string) $header ) );
-        return str_replace( array( ' ', '-' ), '_', $header );
+    private function is_placeholder_row( $row ) {
+        $has_value = false;
+
+        foreach ( $row as $value ) {
+            $trimmed = trim( (string) $value );
+            if ( '' === $trimmed ) {
+                continue;
+            }
+
+            $has_value = true;
+            if ( '...' !== $trimmed ) {
+                return false;
+            }
+        }
+
+        return $has_value;
     }
 
-    private function normalize_row( $row, $sheet_name ) {
-        $question_type = isset( $row['question_type'] ) ? sanitize_key( $row['question_type'] ) : '';
+    private function normalize_header( $header ) {
+        $header = strtolower( trim( (string) $header ) );
+        $header = preg_replace( '/[^a-z0-9]+/', '_', $header );
+        return trim( (string) $header, '_' );
+    }
+
+    private function normalize_row( $row, $sheet_name, $source_filename, $source_group ) {
+        $question_type = sanitize_key( (string) $this->pick_value( $row, array( 'question_type' ) ) );
 
         if ( '' === $question_type ) {
             $sheet_lower = strtolower( (string) $sheet_name );
             $question_type = preg_match( '/math|calculation|formula/', $sheet_lower ) ? 'objective_math' : 'single_choice';
         }
 
+        $question_column = $this->find_question_column_key( $row );
+        $question_text   = '';
+        if ( '' !== $question_column && isset( $row[ $question_column ] ) ) {
+            $question_text = (string) $row[ $question_column ];
+        }
+
+        if ( '' === $question_text ) {
+            $question_text = (string) $this->pick_value( $row, array( 'question_text', 'question', 'questions' ) );
+        }
+
+        $display_order = (int) $this->pick_value( $row, array( 'display_order', 'ct', 'serial_number', 'serial', 'no', 'number' ) );
+        if ( $display_order <= 0 ) {
+            $display_order = 0;
+        }
+
+        $day_label = sanitize_text_field( (string) $this->pick_value( $row, array( 'day_label', 'day' ) ) );
+        if ( '' === $day_label ) {
+            $day_label = $this->derive_day_label_from_filename( $source_filename );
+        } elseif ( is_numeric( $day_label ) ) {
+            $day_label = 'Day ' . (int) $day_label;
+        }
+
+        $course_slug = sanitize_title( (string) $this->pick_value( $row, array( 'course_slug' ) ) );
+        if ( '' === $course_slug ) {
+            $course_slug = $this->infer_course_slug( $source_filename, $source_group );
+        }
+
+        $mode = sanitize_key( (string) $this->pick_value( $row, array( 'mode' ) ) );
+        if ( ! in_array( $mode, array( 'study', 'practice' ), true ) ) {
+            $mode = $this->infer_mode( $source_filename );
+        }
+
+        $set_title = sanitize_text_field( (string) $this->pick_value( $row, array( 'set_title' ) ) );
+        if ( '' === $set_title ) {
+            $set_title = $this->derive_set_title( $question_column, $source_filename, $day_label, $mode, $course_slug );
+        }
+
         return array(
-            'course_slug'   => sanitize_title( $row['course_slug'] ?? '' ),
-            'set_title'     => sanitize_text_field( $row['set_title'] ?? '' ),
-            'day_label'     => sanitize_text_field( $row['day_label'] ?? '' ),
-            'mode'          => sanitize_key( $row['mode'] ?? '' ),
-            'question_text' => wp_kses_post( $row['question_text'] ?? '' ),
-            'choice_a'      => sanitize_text_field( $row['choice_a'] ?? '' ),
-            'choice_b'      => sanitize_text_field( $row['choice_b'] ?? '' ),
-            'choice_c'      => sanitize_text_field( $row['choice_c'] ?? '' ),
-            'choice_d'      => sanitize_text_field( $row['choice_d'] ?? '' ),
-            'correct_choice'=> strtoupper( sanitize_text_field( $row['correct_choice'] ?? '' ) ),
-            'display_order' => absint( $row['display_order'] ?? 0 ),
+            'course_slug'   => $course_slug,
+            'set_title'     => $set_title,
+            'day_label'     => $day_label,
+            'mode'          => $mode,
+            'question_text' => wp_kses_post( $question_text ),
+            'choice_a'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_a', 'a', 'option_a' ) ) ),
+            'choice_b'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_b', 'b', 'option_b' ) ) ),
+            'choice_c'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_c', 'c', 'option_c' ) ) ),
+            'choice_d'      => sanitize_text_field( (string) $this->pick_value( $row, array( 'choice_d', 'd', 'option_d' ) ) ),
+            'correct_choice'=> strtoupper( sanitize_text_field( (string) $this->pick_value( $row, array( 'correct_choice', 'ans', 'answer' ) ) ) ),
+            'display_order' => $display_order,
             'question_type' => in_array( $question_type, array( 'single_choice', 'objective_math' ), true ) ? $question_type : 'single_choice',
-            'prompt_format' => sanitize_key( $row['prompt_format'] ?? 'plain' ),
-            'explanation'   => wp_kses_post( $row['explanation'] ?? '' ),
+            'prompt_format' => sanitize_key( (string) $this->pick_value( $row, array( 'prompt_format' ) ) ) ?: 'plain',
+            'explanation'   => wp_kses_post( (string) $this->pick_value( $row, array( 'explanation' ) ) ),
         );
+    }
+
+    private function pick_value( $row, $aliases ) {
+        foreach ( $aliases as $alias ) {
+            $key = $this->normalize_header( $alias );
+            if ( isset( $row[ $key ] ) && '' !== trim( (string) $row[ $key ] ) ) {
+                return $row[ $key ];
+            }
+        }
+
+        return '';
+    }
+
+    private function find_question_column_key( $row ) {
+        $blocked = array(
+            'ct',
+            'day',
+            'topic',
+            'spec',
+            'ident',
+            'a',
+            'b',
+            'c',
+            'd',
+            'ans',
+            'answer',
+            'form',
+            'question_type',
+            'prompt_format',
+            'explanation',
+            'course_slug',
+            'set_title',
+            'day_label',
+            'mode',
+            'display_order',
+        );
+
+        foreach ( array_keys( $row ) as $key ) {
+            if ( in_array( $key, $blocked, true ) ) {
+                continue;
+            }
+
+            if ( preg_match( '/question/', $key ) ) {
+                return $key;
+            }
+        }
+
+        return '';
+    }
+
+    private function infer_course_slug( $source_filename, $source_group ) {
+        if ( in_array( $source_group, array( 'subsea-questions', 'old-quiz', 'updated-drill-questions' ), true ) ) {
+            return $source_group;
+        }
+
+        $stem = strtoupper( pathinfo( $source_filename, PATHINFO_FILENAME ) );
+        $stem = preg_replace( '/-SAMPLE$/', '', $stem );
+
+        if ( preg_match( '/^SS|^SST/', $stem ) ) {
+            return 'subsea-questions';
+        }
+
+        if ( preg_match( '/^DR|^DRT/', $stem ) ) {
+            return 'updated-drill-questions';
+        }
+
+        if ( preg_match( '/^DS|^DST|^OWO|^OWOT|^OWS|^OWST/', $stem ) ) {
+            return 'old-quiz';
+        }
+
+        return 'quiz-import';
+    }
+
+    private function infer_mode( $source_filename ) {
+        $stem = strtoupper( pathinfo( $source_filename, PATHINFO_FILENAME ) );
+        $stem = preg_replace( '/-SAMPLE$/', '', $stem );
+
+        if ( preg_match( '/(SST|DST|DRT|OWOT|OWST|[A-Z]{2,}T\d+)/', $stem ) ) {
+            return 'practice';
+        }
+
+        return 'study';
+    }
+
+    private function derive_day_label_from_filename( $source_filename ) {
+        $stem = strtoupper( pathinfo( $source_filename, PATHINFO_FILENAME ) );
+        $stem = preg_replace( '/-SAMPLE$/', '', $stem );
+
+        if ( preg_match( '/(\d+)/', $stem, $matches ) ) {
+            return 'Day ' . (int) $matches[1];
+        }
+
+        return '';
+    }
+
+    private function derive_set_title( $question_column, $source_filename, $day_label, $mode, $course_slug ) {
+        if ( '' !== $question_column ) {
+            $title = ucwords( str_replace( '_', ' ', $question_column ) );
+            if ( '' !== trim( $title ) ) {
+                return trim( $title );
+            }
+        }
+
+        $base_name = strtoupper( pathinfo( $source_filename, PATHINFO_FILENAME ) );
+        $base_name = preg_replace( '/-SAMPLE$/', '', $base_name );
+        $mode_label = 'practice' === $mode ? 'Practice Test' : 'Study Guide';
+        $course     = ucwords( str_replace( '-', ' ', $course_slug ) );
+
+        if ( '' !== $day_label ) {
+            return sprintf( '%s %s %s', $course, $day_label, $mode_label );
+        }
+
+        return sprintf( '%s %s %s', $course, $base_name, $mode_label );
     }
 
     private function validate_row( $row ) {
