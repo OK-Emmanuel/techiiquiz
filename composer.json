@@ -1,0 +1,17 @@
+{
+    "name": "rccgj/techiquiz",
+    "autoload": {
+        "psr-4": {
+            "Rccgj\\Techiquiz\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "OK-Emmanuel",
+            "email": "olawuniemmanuelk@gmail.com"
+        }
+    ],
+    "require": {
+        "phpoffice/phpspreadsheet": "^5.5"
+    }
+}

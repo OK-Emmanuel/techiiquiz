@@ -2,3 +2,5 @@ node_modules/
 vendor/
 *.log
 .DS_Store
+*.zip
+*.mp4
