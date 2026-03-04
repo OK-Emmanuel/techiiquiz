@@ -84,10 +84,35 @@
 
       missedEl.innerHTML = '<h4 class="font-medium text-slate-900">Missed questions</h4>';
       result.missed.forEach((item) => {
-        const line = document.createElement('div');
-        line.className = 'text-sm text-slate-700 p-2 border border-slate-200 rounded';
-        line.textContent = `${item.prompt}`;
-        missedEl.appendChild(line);
+        const card = document.createElement('div');
+        card.className = 'text-sm text-slate-700 p-3 border border-slate-200 rounded space-y-2';
+
+        const prompt = document.createElement('p');
+        prompt.className = 'font-medium text-slate-900';
+        prompt.textContent = item.prompt;
+        card.appendChild(prompt);
+
+        const list = document.createElement('div');
+        list.className = 'space-y-1';
+
+        (item.choices || []).forEach((choice) => {
+          const line = document.createElement('p');
+          const wrongPrefix = choice.is_wrong_selected ? 'X ' : '';
+
+          if (choice.is_correct) {
+            line.className = 'font-bold text-green-700';
+          } else if (choice.is_wrong_selected) {
+            line.className = 'text-red-700';
+          } else {
+            line.className = 'text-slate-700';
+          }
+
+          line.textContent = `${wrongPrefix}${choice.choice_key}. ${choice.choice_text}`;
+          list.appendChild(line);
+        });
+
+        card.appendChild(list);
+        missedEl.appendChild(card);
       });
     }
 
@@ -139,6 +164,10 @@
       .then(([setPayload, sessionPayload]) => {
         questions = setPayload.questions || [];
         sessionId = Number(sessionPayload.session_id || 0);
+        index = Number(sessionPayload.current_index || 0);
+        if (index < 0 || index > questions.length) {
+          index = 0;
+        }
         status.textContent = 'Quiz ready.';
         renderQuestion();
       })

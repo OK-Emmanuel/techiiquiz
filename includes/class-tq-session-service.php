@@ -19,6 +19,18 @@ class TQ_Session_Service {
             return new WP_Error( 'invalid_mode', 'Mode must be study or practice.' );
         }
 
+        $active_session = $this->db->get_active_session( $user_id, $set_id, $mode );
+        if ( ! empty( $active_session ) ) {
+            $resume_index = $this->get_resume_index( (int) $active_session['id'], (int) $set_id, $mode );
+
+            return array(
+                'session_id'    => (int) $active_session['id'],
+                'mode'          => $mode,
+                'resumed'       => true,
+                'current_index' => $resume_index,
+            );
+        }
+
         $session_id = $this->db->create_session( $user_id, $set_id, $mode );
 
         do_action(
@@ -32,8 +44,10 @@ class TQ_Session_Service {
         );
 
         return array(
-            'session_id' => $session_id,
-            'mode'       => $mode,
+            'session_id'    => $session_id,
+            'mode'          => $mode,
+            'resumed'       => false,
+            'current_index' => 0,
         );
     }
 
@@ -101,5 +115,55 @@ class TQ_Session_Service {
         );
 
         return $result;
+    }
+
+    private function get_resume_index( $session_id, $set_id, $mode ) {
+        $questions = $this->db->get_set_questions( $set_id );
+        $answers   = $this->db->get_session_answers( $session_id );
+
+        if ( empty( $questions ) || empty( $answers ) ) {
+            return 0;
+        }
+
+        $answers_by_question = array();
+        foreach ( $answers as $answer ) {
+            $question_id = (int) $answer['question_id'];
+            if ( ! isset( $answers_by_question[ $question_id ] ) ) {
+                $answers_by_question[ $question_id ] = array();
+            }
+            $answers_by_question[ $question_id ][] = $answer;
+        }
+
+        if ( 'practice' === $mode ) {
+            $answered = array();
+            foreach ( $answers as $answer ) {
+                $answered[ (int) $answer['question_id'] ] = true;
+            }
+
+            return count( $answered );
+        }
+
+        $index = 0;
+        foreach ( $questions as $question ) {
+            $question_id = (int) $question['id'];
+            $has_correct = false;
+
+            if ( isset( $answers_by_question[ $question_id ] ) ) {
+                foreach ( $answers_by_question[ $question_id ] as $entry ) {
+                    if ( (int) $entry['is_correct'] === 1 ) {
+                        $has_correct = true;
+                        break;
+                    }
+                }
+            }
+
+            if ( ! $has_correct ) {
+                return $index;
+            }
+
+            $index++;
+        }
+
+        return $index;
     }
 }

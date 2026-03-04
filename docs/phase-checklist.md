@@ -106,9 +106,9 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Practice mode: store answers without immediate correctness feedback
 - [x] Practice mode: compute final score at completion
 - [x] Practice mode: generate missed-question review list
-- [ ] Review mode: mark student incorrect selection with X
-- [ ] Review mode: emphasize correct option
-- [ ] Persist progress for interrupted sessions
+- [x] Review mode: mark student incorrect selection with X
+- [x] Review mode: emphasize correct option
+- [x] Persist progress for interrupted sessions
 
 ### Exit Criteria
 - [ ] Full end-to-end student flow works for one complete day set in both modes
@@ -211,3 +211,4 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Flexible legacy importer mapping implemented (`Ct/CT`, variable question column, `(A)-(D)`, `Ans`) with filename/source-group metadata inference
 - [x] Importer validation now supports 2–4 choices, auto display-order fallback, and stronger math/prompt column inference
 - [x] Persistent import logs implemented with importer history table + admin history view
+- [x] Phase 3 runtime upgraded with session resume index and full missed-question review annotation (X + correct emphasis)

@@ -508,6 +508,23 @@ class TQ_DB {
         );
     }
 
+    public function get_active_session( $user_id, $set_id, $mode ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'sessions' )}
+                 WHERE user_id = %d AND set_id = %d AND mode = %s AND status = 'in_progress'
+                 ORDER BY id DESC
+                 LIMIT 1",
+                (int) $user_id,
+                (int) $set_id,
+                sanitize_key( $mode )
+            ),
+            ARRAY_A
+        );
+    }
+
     public function get_last_attempt_number( $session_id, $question_id ) {
         global $wpdb;
 

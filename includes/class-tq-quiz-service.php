@@ -73,12 +73,29 @@ class TQ_Quiz_Service {
                 continue;
             }
 
+            $review_choices = array();
+            foreach ( $question['choices'] as $choice ) {
+                $choice_id = (int) $choice['id'];
+                $is_correct = (int) $choice['is_correct'] === 1;
+                $is_selected = $choice_id === $selected;
+
+                $review_choices[] = array(
+                    'id'               => $choice_id,
+                    'choice_key'       => $choice['choice_key'],
+                    'choice_text'      => $choice['choice_text'],
+                    'is_correct'       => $is_correct,
+                    'is_selected'      => $is_selected,
+                    'is_wrong_selected'=> $is_selected && ! $is_correct,
+                );
+            }
+
             $missed[] = array(
                 'question_id'        => $question_id,
                 'prompt'             => $question['prompt'],
                 'question_type'      => $question['question_type'],
                 'selected_choice_id' => $selected,
                 'correct_choice_id'  => $correct_choice_id,
+                'choices'            => $review_choices,
             );
         }
 
