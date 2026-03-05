@@ -574,7 +574,15 @@ class TQ_Import_Service {
         $existing = $this->db->get_question_by_set_and_order( (int) $set['id'], (int) $row['display_order'] );
 
         if ( ! empty( $existing ) && ! $upsert ) {
-            throw new RuntimeException( 'Duplicate display_order in set. Enable upsert to update existing rows.' );
+            $incoming_prompt = strtolower( trim( wp_strip_all_tags( (string) $row['question_text'] ) ) );
+            $existing_prompt = strtolower( trim( wp_strip_all_tags( (string) $existing['prompt'] ) ) );
+
+            if ( $incoming_prompt === $existing_prompt ) {
+                throw new RuntimeException( 'Duplicate display_order in set. Enable upsert to update existing rows.' );
+            }
+
+            $row['display_order'] = $this->db->get_next_display_order_for_set( (int) $set['id'] );
+            $existing = array();
         }
 
         $payload = array(

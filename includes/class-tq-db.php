@@ -293,6 +293,38 @@ class TQ_DB {
         );
     }
 
+    public function count_questions_for_set( $set_id ) {
+        global $wpdb;
+
+        return (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table( 'questions' )} WHERE set_id = %d",
+                $set_id
+            )
+        );
+    }
+
+    public function get_questions_for_admin_paginated( $set_id, $page = 1, $per_page = 25 ) {
+        global $wpdb;
+
+        $page     = max( 1, (int) $page );
+        $per_page = max( 1, (int) $per_page );
+        $offset   = ( $page - 1 ) * $per_page;
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'questions' )}
+                 WHERE set_id = %d
+                 ORDER BY display_order ASC
+                 LIMIT %d OFFSET %d",
+                $set_id,
+                $per_page,
+                $offset
+            ),
+            ARRAY_A
+        );
+    }
+
     public function get_choices_by_question( $question_id ) {
         global $wpdb;
         return $wpdb->get_results(
@@ -456,6 +488,19 @@ class TQ_DB {
             ),
             ARRAY_A
         );
+    }
+
+    public function get_next_display_order_for_set( $set_id ) {
+        global $wpdb;
+
+        $max_display_order = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT MAX(display_order) FROM {$this->table( 'questions' )} WHERE set_id = %d",
+                $set_id
+            )
+        );
+
+        return $max_display_order + 1;
     }
 
     public function get_choice_by_id( $choice_id ) {

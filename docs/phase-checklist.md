@@ -212,3 +212,5 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Importer validation now supports 2–4 choices, auto display-order fallback, and stronger math/prompt column inference
 - [x] Persistent import logs implemented with importer history table + admin history view
 - [x] Phase 3 runtime upgraded with session resume index and full missed-question review annotation (X + correct emphasis)
+- [x] Admin Question Bank pagination added to reduce heavy single-page rendering on large sets
+- [x] Importer now auto-reindexes `display_order` collisions across sheets on first import when prompts differ (upsert still required for true re-import updates)

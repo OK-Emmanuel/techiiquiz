@@ -226,12 +226,18 @@ class TQ_Admin_Menu {
         $set    = $set_id ? $this->db->get_set( $set_id ) : null;
         $sets   = $this->db->get_sets();
 
+        $current_page = isset( $_GET['paged'] ) ? absint( wp_unslash( $_GET['paged'] ) ) : 1;
+        $current_page = max( 1, $current_page );
+        $per_page     = 25;
+
         if ( ! $set && ! empty( $sets ) ) {
             $set_id = (int) $sets[0]['id'];
             $set    = $this->db->get_set( $set_id );
         }
 
-        $questions = $set_id ? $this->db->get_questions_for_admin( $set_id ) : array();
+        $questions        = $set_id ? $this->db->get_questions_for_admin_paginated( $set_id, $current_page, $per_page ) : array();
+        $total_questions  = $set_id ? $this->db->count_questions_for_set( $set_id ) : 0;
+        $total_pages      = $total_questions > 0 ? (int) ceil( $total_questions / $per_page ) : 1;
 
         $editing_id      = isset( $_GET['edit'] ) ? absint( wp_unslash( $_GET['edit'] ) ) : 0;
         $editing_data    = $editing_id ? $this->db->get_question_by_id( $editing_id ) : null;
@@ -306,6 +312,7 @@ class TQ_Admin_Menu {
 
         echo '<div class="tq-card">';
         echo '<h2>Questions in Set: ' . esc_html( $set['title'] ) . '</h2>';
+        echo '<p><strong>Total:</strong> ' . esc_html( (string) $total_questions ) . ' questions' . ' | <strong>Page:</strong> ' . esc_html( (string) $current_page ) . ' of ' . esc_html( (string) $total_pages ) . '</p>';
         echo '<table class="widefat striped"><thead><tr><th>Order</th><th>Type</th><th>Prompt</th><th>Actions</th></tr></thead><tbody>';
         foreach ( $questions as $question ) {
             $edit_link = add_query_arg(
@@ -331,6 +338,32 @@ class TQ_Admin_Menu {
             echo '</tr>';
         }
         echo '</tbody></table>';
+
+        if ( $total_pages > 1 ) {
+            $page_links = paginate_links(
+                array(
+                    'base'      => add_query_arg(
+                        array(
+                            'page'   => 'tq-questions',
+                            'set_id' => (int) $set_id,
+                            'paged'  => '%#%',
+                        ),
+                        admin_url( 'admin.php' )
+                    ),
+                    'format'    => '',
+                    'current'   => $current_page,
+                    'total'     => $total_pages,
+                    'type'      => 'list',
+                    'prev_text' => '&laquo; Prev',
+                    'next_text' => 'Next &raquo;',
+                )
+            );
+
+            if ( ! empty( $page_links ) ) {
+                echo '<div class="tablenav"><div class="tablenav-pages">' . wp_kses_post( $page_links ) . '</div></div>';
+            }
+        }
+
         echo '</div>';
         echo '</div>';
         echo '</div>';
