@@ -12,6 +12,14 @@ class TQ_Quiz_Service {
     }
 
     public function get_set_payload( $set_id ) {
+        $set          = $this->db->get_set( $set_id );
+        $course_title = '';
+
+        if ( $set && ! empty( $set['course_id'] ) ) {
+            $course       = $this->db->get_course( (int) $set['course_id'] );
+            $course_title = $course ? ( $course['title'] ?? '' ) : '';
+        }
+
         $questions = $this->db->get_set_questions( $set_id );
 
         foreach ( $questions as &$question ) {
@@ -21,8 +29,12 @@ class TQ_Quiz_Service {
         }
 
         return array(
-            'set_id'    => (int) $set_id,
-            'questions' => $questions,
+            'set_id'       => (int) $set_id,
+            'set_title'    => $set ? ( $set['title'] ?? '' ) : '',
+            'day_label'    => $set ? ( $set['day_label'] ?? '' ) : '',
+            'course_title' => $course_title,
+            'mode'         => $set ? ( $set['mode'] ?? 'study' ) : 'study',
+            'questions'    => $questions,
         );
     }
 

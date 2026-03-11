@@ -23,6 +23,7 @@ class TQ_Admin_Menu {
         add_action( 'admin_post_tq_save_question', array( $this, 'save_question' ) );
         add_action( 'admin_post_tq_delete_question', array( $this, 'delete_question' ) );
         add_action( 'admin_post_tq_run_import', array( $this, 'run_import' ) );
+        add_action( 'admin_post_tq_generate_quiz_page', array( $this, 'generate_quiz_page' ) );
     }
 
     public function add_menu() {
@@ -177,24 +178,47 @@ class TQ_Admin_Menu {
         echo '</form>';
         echo '</div>';
 
-        echo '<div class="tq-card">';
+        echo '<div class="tq-card" style="overflow-x:auto;">';
         echo '<h2>Existing Sets</h2>';
-        echo '<table class="widefat striped"><thead><tr><th>ID</th><th>Course</th><th>Title</th><th>Day</th><th>Mode</th><th>Questions</th><th>Actions</th></tr></thead><tbody>';
+        echo '<table class="widefat striped"><thead><tr>';
+        echo '<th>ID</th><th>Course</th><th>Title</th><th>Day</th><th>Mode</th><th>Questions</th>';
+        echo '<th>Shortcode</th><th>Page</th><th>Actions</th>';
+        echo '</tr></thead><tbody>';
         foreach ( $sets as $set ) {
+            $sid            = (int) $set['id'];
+            $set_mode       = sanitize_key( $set['mode'] ?? 'study' );
+            $shortcode      = '[tq_quiz set="' . $sid . '" mode="' . $set_mode . '"]';
+            $shortcode_id   = 'tq-sc-' . $sid;
+
             $edit_link = add_query_arg(
                 array(
                     'page' => 'tq-sets',
-                    'edit' => (int) $set['id'],
+                    'edit' => $sid,
                 ),
                 admin_url( 'admin.php' )
             );
             $questions_link = add_query_arg(
                 array(
                     'page'   => 'tq-questions',
-                    'set_id' => (int) $set['id'],
+                    'set_id' => $sid,
                 ),
                 admin_url( 'admin.php' )
             );
+
+            /* check if a quiz page already exists for this set */
+            $page_id     = (int) get_option( 'tq_quiz_page_' . $sid, 0 );
+            $page_status = $page_id ? get_post_status( $page_id ) : false;
+            $page_cell   = '';
+            if ( $page_id && 'publish' === $page_status ) {
+                $page_cell = '<a class="button button-small" href="' . esc_url( get_permalink( $page_id ) ) . '" target="_blank">View Page</a>';
+            } else {
+                $page_cell  = '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;">';
+                $page_cell .= wp_nonce_field( 'tq_generate_page_' . $sid, '_wpnonce', true, false );
+                $page_cell .= '<input type="hidden" name="action" value="tq_generate_quiz_page" />';
+                $page_cell .= '<input type="hidden" name="set_id" value="' . esc_attr( $sid ) . '" />';
+                $page_cell .= '<button class="button button-small">Generate Page</button>';
+                $page_cell .= '</form>';
+            }
 
             echo '<tr>';
             echo '<td>' . esc_html( $set['id'] ) . '</td>';
@@ -203,12 +227,17 @@ class TQ_Admin_Menu {
             echo '<td>' . esc_html( $set['day_label'] ) . '</td>';
             echo '<td>' . esc_html( ucfirst( $set['mode'] ) ) . '</td>';
             echo '<td>' . esc_html( $set['question_count'] ) . '</td>';
+            echo '<td style="white-space:nowrap;">';
+            echo '<code id="' . esc_attr( $shortcode_id ) . '" style="font-size:11px;">' . esc_html( $shortcode ) . '</code> ';
+            echo '<button type="button" class="button button-small" onclick="tqCopyShortcode(' . "'" . esc_js( $shortcode_id ) . "'" . ')">Copy</button>';
+            echo '</td>';
+            echo '<td>' . wp_kses_post( $page_cell ) . '</td>';
             echo '<td><a class="button button-small" href="' . esc_url( $edit_link ) . '">Edit</a> ';
             echo '<a class="button button-small" href="' . esc_url( $questions_link ) . '">Questions</a> ';
             echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;">';
-            wp_nonce_field( 'tq_delete_set_' . (int) $set['id'] );
+            wp_nonce_field( 'tq_delete_set_' . $sid );
             echo '<input type="hidden" name="action" value="tq_delete_set" />';
-            echo '<input type="hidden" name="set_id" value="' . esc_attr( $set['id'] ) . '" />';
+            echo '<input type="hidden" name="set_id" value="' . esc_attr( $sid ) . '" />';
             echo '<button class="button button-small" onclick="return confirm(\'Delete this set?\')">Delete</button>';
             echo '</form></td>';
             echo '</tr>';
@@ -216,6 +245,13 @@ class TQ_Admin_Menu {
         echo '</tbody></table>';
         echo '</div>';
         echo '</div>';
+        /* clipboard helper */
+        echo '<script>function tqCopyShortcode(id){';
+        echo 'var el=document.getElementById(id);if(!el)return;';
+        echo 'navigator.clipboard?navigator.clipboard.writeText(el.textContent)';
+        echo '.then(function(){alert("Shortcode copied!")})'
+        . '.catch(function(){prompt("Copy this shortcode:",el.textContent)})';
+        echo ':prompt("Copy this shortcode:",el.textContent);}</script>';
         echo '</div>';
     }
 
@@ -705,18 +741,21 @@ class TQ_Admin_Menu {
 
         $notice = sanitize_text_field( wp_unslash( $_GET['notice'] ) );
         $labels = array(
-            'course_created'   => 'Course created.',
-            'course_updated'   => 'Course updated.',
-            'course_deleted'   => 'Course deleted.',
-            'set_created'      => 'Set created.',
-            'set_updated'      => 'Set updated.',
-            'set_deleted'      => 'Set deleted.',
-            'question_saved'   => 'Question saved.',
-            'question_deleted' => 'Question deleted.',
-            'import_finished'  => 'Import completed. See report below.',
-            'import_failed'    => 'Import failed. Review report below.',
+            'course_created'      => 'Course created.',
+            'course_updated'      => 'Course updated.',
+            'course_deleted'      => 'Course deleted.',
+            'set_created'         => 'Set created.',
+            'set_updated'         => 'Set updated.',
+            'set_deleted'         => 'Set deleted.',
+            'question_saved'      => 'Question saved.',
+            'question_deleted'    => 'Question deleted.',
+            'import_finished'     => 'Import completed. See report below.',
+            'import_failed'       => 'Import failed. Review report below.',
             'import_missing_file' => 'Please select a file to import.',
             'import_upload_error' => 'Upload failed. Please try again.',
+            'page_created'        => 'Quiz page created and published.',
+            'page_exists'         => 'A quiz page already exists for this set.',
+            'page_error'          => 'Could not create the quiz page — please try again.',
         );
 
         if ( ! isset( $labels[ $notice ] ) ) {
@@ -724,6 +763,46 @@ class TQ_Admin_Menu {
         }
 
         echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $labels[ $notice ] ) . '</p></div>';
+    }
+
+    public function generate_quiz_page() {
+        $this->assert_admin();
+
+        $set_id = isset( $_POST['set_id'] ) ? absint( wp_unslash( $_POST['set_id'] ) ) : 0;
+        check_admin_referer( 'tq_generate_page_' . $set_id );
+
+        $set = $this->db->get_set( $set_id );
+        if ( ! $set || $set_id <= 0 ) {
+            wp_die( esc_html__( 'Invalid quiz set.', 'techiquiz' ) );
+        }
+
+        /* if a published page already exists, just go back */
+        $existing_page_id = (int) get_option( 'tq_quiz_page_' . $set_id, 0 );
+        if ( $existing_page_id && 'publish' === get_post_status( $existing_page_id ) ) {
+            $this->redirect_with_notice( 'tq-sets', 'page_exists' );
+        }
+
+        $set_mode = sanitize_key( $set['mode'] ?? 'study' );
+        $content  = '[tq_quiz set="' . $set_id . '" mode="' . $set_mode . '"]';
+
+        $page_id = wp_insert_post(
+            array(
+                'post_title'     => sanitize_text_field( $set['title'] ),
+                'post_content'   => $content,
+                'post_status'    => 'publish',
+                'post_type'      => 'page',
+                'comment_status' => 'closed',
+                'ping_status'    => 'closed',
+            ),
+            true
+        );
+
+        if ( is_wp_error( $page_id ) ) {
+            $this->redirect_with_notice( 'tq-sets', 'page_error' );
+        }
+
+        update_option( 'tq_quiz_page_' . $set_id, (int) $page_id );
+        $this->redirect_with_notice( 'tq-sets', 'page_created' );
     }
 
     private function redirect_with_notice( $page, $notice ) {
