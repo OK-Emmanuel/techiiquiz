@@ -39,6 +39,11 @@ class TQ_Assets {
         // Tailwind CDN (play script — scans DOM dynamically, sufficient for plugin UI)
         if ( ! wp_script_is( 'tailwindcss', 'enqueued' ) ) {
             wp_enqueue_script( 'tailwindcss', 'https://cdn.tailwindcss.com', array(), null, false );
+            wp_add_inline_script(
+                'tailwindcss',
+                'tailwind.config={theme:{extend:{colors:{brand:{blue:"#312e81",red:"#dc2626"}}}}};',
+                'before'
+            );
         }
         wp_enqueue_style( 'tq-quiz' );
         wp_enqueue_script( 'tq-quiz-app' );

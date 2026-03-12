@@ -1,61 +1,101 @@
-.tq-admin {
-  --tq-blue: #1e3a8a;
-  --tq-red: #dc2626;
-  --tq-black: #111827;
-  --tq-white: #ffffff;
+.tq-admin .tq-modern-table td,
+.tq-admin .tq-modern-table th {
+  vertical-align: middle;
 }
 
-.tq-admin .tq-title {
-  color: var(--tq-blue);
-  font-weight: 700;
-  margin-bottom: 16px;
+.tq-admin .tq-actions {
+  white-space: nowrap;
 }
 
-.tq-admin .tq-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 420px) 1fr;
-  gap: 20px;
-  align-items: start;
+.tq-admin .tq-icon-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px !important;
+  margin-right: 4px;
 }
 
-.tq-admin .tq-card {
-  background: var(--tq-white);
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+.tq-admin .tq-icon-btn .dashicons {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  line-height: 16px;
 }
 
-.tq-admin .tq-card h2,
-.tq-admin .tq-card h3 {
-  color: var(--tq-black);
+.tq-admin .tq-icon-danger {
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
 }
 
-.tq-admin .tq-card label {
+.tq-admin .tq-icon-danger:hover {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+}
+
+.tq-admin .tq-toolbar p {
+  margin: 0;
+}
+
+.tq-no-scroll {
+  overflow: hidden;
+}
+
+.tq-admin .tq-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: none;
+}
+
+.tq-admin .tq-modal.tq-modal-open {
   display: block;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--tq-black);
 }
 
-.tq-admin .tq-btn-primary,
-.tq-admin .button-primary {
-  background: var(--tq-red) !important;
-  border-color: #b91c1c !important;
+.tq-admin .tq-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
 }
 
-.tq-admin .button-small {
-  border-color: var(--tq-blue) !important;
-  color: var(--tq-blue) !important;
+.tq-admin .tq-modal-dialog {
+  position: relative;
+  max-width: 680px;
+  width: calc(100% - 30px);
+  max-height: calc(100vh - 70px);
+  margin: 36px auto;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.18);
+  padding: 16px;
 }
 
-.tq-admin .button-small:hover {
-  background: var(--tq-blue) !important;
-  color: var(--tq-white) !important;
+.tq-admin .tq-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-@media (max-width: 1200px) {
-  .tq-admin .tq-grid {
-    grid-template-columns: 1fr;
-  }
+.tq-admin .tq-modal-head h2 {
+  margin: 0;
+}
+
+.tq-admin .tq-modal-close {
+  font-size: 26px;
+  line-height: 1;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.tq-admin .tq-modal-form .regular-text,
+.tq-admin .tq-modal-form select,
+.tq-admin .tq-modal-form textarea,
+.tq-admin .tq-modal-form input[type="number"] {
+  width: 100%;
+  max-width: 100%;
 }

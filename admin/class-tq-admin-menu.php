@@ -79,6 +79,13 @@ class TQ_Admin_Menu {
             return;
         }
 
+        wp_enqueue_script( 'tailwindcss', 'https://cdn.tailwindcss.com', array(), null, false );
+        wp_add_inline_script(
+            'tailwindcss',
+            'tailwind.config={theme:{extend:{colors:{brand:{blue:"#312e81",red:"#dc2626"}}}}};',
+            'before'
+        );
+
         wp_enqueue_style(
             'tq-admin',
             TQ_PLUGIN_URL . 'admin/css/admin.css',
@@ -93,28 +100,16 @@ class TQ_Admin_Menu {
         $courses      = $this->db->get_courses();
         $editing_id   = isset( $_GET['edit'] ) ? absint( wp_unslash( $_GET['edit'] ) ) : 0;
         $editing_data = $editing_id ? $this->db->get_course( $editing_id ) : null;
+        $modal_open   = $editing_id > 0 ? ' tq-modal-open' : '';
 
-        echo '<div class="wrap tq-admin">';
-        echo '<h1 class="tq-title">TechiQuiz Courses</h1>';
+        echo '<div class="wrap tq-admin tq-page-courses">';
+        echo '<div class="tq-page-head flex items-center justify-between gap-3 mb-4"><h1 class="tq-title text-slate-900 text-5xl font-extrabold tracking-tight m-0">TechiQuiz Courses</h1>';
+        echo '<button type="button" class="button button-primary tq-create-btn !bg-blue-600 hover:!bg-blue-700 !border-blue-700 !text-white !rounded-xl !px-4 !py-2 !inline-flex !items-center !gap-2" data-tq-open-modal="tq-course-modal"><span class="dashicons dashicons-plus-alt2"></span> ' . ( $editing_data ? 'Edit Course' : 'Create New Course' ) . '</button></div>';
         $this->render_notice();
 
-        echo '<div class="tq-grid">';
-        echo '<div class="tq-card">';
-        echo '<h2>' . ( $editing_data ? 'Edit Course' : 'Add Course' ) . '</h2>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        wp_nonce_field( 'tq_save_course' );
-        echo '<input type="hidden" name="action" value="tq_save_course" />';
-        echo '<input type="hidden" name="course_id" value="' . esc_attr( $editing_id ) . '" />';
-        echo '<p><label>Slug</label><input class="regular-text" name="slug" required value="' . esc_attr( $editing_data['slug'] ?? '' ) . '" /></p>';
-        echo '<p><label>Title</label><input class="regular-text" name="title" required value="' . esc_attr( $editing_data['title'] ?? '' ) . '" /></p>';
-        echo '<p><label><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
-        submit_button( $editing_data ? 'Update Course' : 'Create Course', 'primary tq-btn-primary' );
-        echo '</form>';
-        echo '</div>';
-
-        echo '<div class="tq-card">';
+        echo '<div class="tq-card rounded-2xl border border-slate-200 bg-white shadow-sm p-4">';
         echo '<h2>Existing Courses</h2>';
-        echo '<table class="widefat striped"><thead><tr><th>ID</th><th>Slug</th><th>Title</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>ID</th><th>Slug</th><th>Title</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
         foreach ( $courses as $course ) {
             $edit_link = add_query_arg(
                 array(
@@ -129,18 +124,36 @@ class TQ_Admin_Menu {
             echo '<td>' . esc_html( $course['slug'] ) . '</td>';
             echo '<td>' . esc_html( $course['title'] ) . '</td>';
             echo '<td>' . ( (int) $course['active'] === 1 ? 'Active' : 'Inactive' ) . '</td>';
-            echo '<td><a class="button button-small" href="' . esc_url( $edit_link ) . '">Edit</a> ';
-            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;">';
+            echo '<td class="tq-actions">';
+            echo '<a class="button button-small tq-icon-btn" title="Edit course" aria-label="Edit course" href="' . esc_url( $edit_link ) . '"><span class="dashicons dashicons-edit"></span></a>';
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;vertical-align:middle;">';
             wp_nonce_field( 'tq_delete_course_' . (int) $course['id'] );
             echo '<input type="hidden" name="action" value="tq_delete_course" />';
             echo '<input type="hidden" name="course_id" value="' . esc_attr( $course['id'] ) . '" />';
-            echo '<button class="button button-small" onclick="return confirm(\'Delete this course?\')">Delete</button>';
-            echo '</form></td>';
+            echo '<button class="button button-small tq-icon-btn tq-icon-danger" title="Delete course" aria-label="Delete course" onclick="return confirm(\'Delete this course?\')"><span class="dashicons dashicons-trash"></span></button>';
+            echo '</form>';
+            echo '</td>';
             echo '</tr>';
         }
         echo '</tbody></table>';
         echo '</div>';
-        echo '</div>';
+
+        echo '<div id="tq-course-modal" class="tq-modal' . esc_attr( $modal_open ) . '">';
+        echo '<div class="tq-modal-backdrop bg-slate-950/45 backdrop-blur-sm" data-tq-close-modal="tq-course-modal"></div>';
+        echo '<div class="tq-modal-dialog rounded-3xl border border-slate-200 bg-white shadow-2xl">';
+        echo '<div class="tq-modal-head flex items-center justify-between border-b border-slate-200 px-6 py-5"><div><p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">TechiQuiz</p><h2 class="mt-1 text-2xl font-bold text-slate-900">' . ( $editing_data ? 'Edit Course' : 'Create New Course' ) . '</h2></div>';
+        echo '<button type="button" class="tq-modal-close inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700" aria-label="Close" data-tq-close-modal="tq-course-modal">&times;</button></div>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="tq-modal-form space-y-5 px-6 py-6">';
+        wp_nonce_field( 'tq_save_course' );
+        echo '<input type="hidden" name="action" value="tq_save_course" />';
+        echo '<input type="hidden" name="course_id" value="' . esc_attr( $editing_id ) . '" />';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Slug</label><input class="regular-text !h-11 !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="slug" required value="' . esc_attr( $editing_data['slug'] ?? '' ) . '" /></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Title</label><input class="regular-text !h-11 !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="title" required value="' . esc_attr( $editing_data['title'] ?? '' ) . '" /></p>';
+        echo '<p><label class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
+        submit_button( $editing_data ? 'Update Course' : 'Create Course', 'primary tq-btn-primary !m-0 !h-11 !rounded-xl !border-brand-red !bg-brand-red !px-5 !text-sm !font-semibold !text-white hover:!bg-red-700' );
+        echo '</form></div></div>';
+
+        echo '<script>(function(){var b=document.body;document.querySelectorAll("[data-tq-open-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-open-modal");var m=document.getElementById(id);if(m){m.classList.add("tq-modal-open");b.classList.add("tq-no-scroll");}});});document.querySelectorAll("[data-tq-close-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-close-modal");var m=document.getElementById(id);if(m){m.classList.remove("tq-modal-open");b.classList.remove("tq-no-scroll");}});});})();</script>';
         echo '</div>';
     }
 
@@ -151,36 +164,15 @@ class TQ_Admin_Menu {
         $sets         = $this->db->get_sets();
         $editing_id   = isset( $_GET['edit'] ) ? absint( wp_unslash( $_GET['edit'] ) ) : 0;
         $editing_data = $editing_id ? $this->db->get_set( $editing_id ) : null;
+        $modal_open   = $editing_id > 0 ? ' tq-modal-open' : '';
 
-        echo '<div class="wrap tq-admin">';
-        echo '<h1 class="tq-title">TechiQuiz Sets</h1>';
+        echo '<div class="wrap tq-admin tq-page-sets">';
+        echo '<div class="tq-page-head flex items-center justify-between gap-3 mb-4"><h1 class="tq-title text-slate-900 text-5xl font-extrabold tracking-tight m-0">TechiQuiz Sets</h1>';
+        echo '<button type="button" class="button button-primary tq-create-btn !bg-blue-600 hover:!bg-blue-700 !border-blue-700 !text-white !rounded-xl !px-4 !py-2 !inline-flex !items-center !gap-2" data-tq-open-modal="tq-set-modal"><span class="dashicons dashicons-plus-alt2"></span> ' . ( $editing_data ? 'Edit Set' : 'Create New Set' ) . '</button></div>';
         $this->render_notice();
-
-        echo '<div class="tq-grid">';
-        echo '<div class="tq-card">';
-        echo '<h2>' . ( $editing_data ? 'Edit Set' : 'Add Set' ) . '</h2>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        wp_nonce_field( 'tq_save_set' );
-        echo '<input type="hidden" name="action" value="tq_save_set" />';
-        echo '<input type="hidden" name="set_id" value="' . esc_attr( $editing_id ) . '" />';
-        echo '<p><label>Course</label><select name="course_id" required>';
-        echo '<option value="">Select course</option>';
-        foreach ( $courses as $course ) {
-            echo '<option value="' . esc_attr( $course['id'] ) . '" ' . selected( (int) ( $editing_data['course_id'] ?? 0 ), (int) $course['id'], false ) . '>' . esc_html( $course['title'] ) . '</option>';
-        }
-        echo '</select></p>';
-        echo '<p><label>Title</label><input class="regular-text" name="title" required value="' . esc_attr( $editing_data['title'] ?? '' ) . '" /></p>';
-        echo '<p><label>Day Label</label><input class="regular-text" name="day_label" required value="' . esc_attr( $editing_data['day_label'] ?? '' ) . '" /></p>';
-        echo '<p><label>Mode</label><select name="mode"><option value="study" ' . selected( $editing_data['mode'] ?? 'study', 'study', false ) . '>Study</option><option value="practice" ' . selected( $editing_data['mode'] ?? 'study', 'practice', false ) . '>Practice</option></select></p>';
-        echo '<p><label>Version</label><input type="number" min="1" name="version" value="' . esc_attr( $editing_data['version'] ?? 1 ) . '" /></p>';
-        echo '<p><label><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
-        submit_button( $editing_data ? 'Update Set' : 'Create Set', 'primary tq-btn-primary' );
-        echo '</form>';
-        echo '</div>';
-
-        echo '<div class="tq-card" style="overflow-x:auto;">';
+        echo '<div class="tq-card rounded-2xl border border-slate-200 bg-white shadow-sm p-4" style="overflow-x:auto;">';
         echo '<h2>Existing Sets</h2>';
-        echo '<table class="widefat striped"><thead><tr>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr>';
         echo '<th>ID</th><th>Course</th><th>Title</th><th>Day</th><th>Mode</th><th>Questions</th>';
         echo '<th>Shortcode</th><th>Page</th><th>Actions</th>';
         echo '</tr></thead><tbody>';
@@ -210,13 +202,13 @@ class TQ_Admin_Menu {
             $page_status = $page_id ? get_post_status( $page_id ) : false;
             $page_cell   = '';
             if ( $page_id && 'publish' === $page_status ) {
-                $page_cell = '<a class="button button-small" href="' . esc_url( get_permalink( $page_id ) ) . '" target="_blank">View Page</a>';
+                $page_cell = '<a class="button button-small tq-icon-btn" title="View generated page" aria-label="View generated page" href="' . esc_url( get_permalink( $page_id ) ) . '" target="_blank"><span class="dashicons dashicons-external"></span></a>';
             } else {
                 $page_cell  = '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;">';
                 $page_cell .= wp_nonce_field( 'tq_generate_page_' . $sid, '_wpnonce', true, false );
                 $page_cell .= '<input type="hidden" name="action" value="tq_generate_quiz_page" />';
                 $page_cell .= '<input type="hidden" name="set_id" value="' . esc_attr( $sid ) . '" />';
-                $page_cell .= '<button class="button button-small">Generate Page</button>';
+                $page_cell .= '<button class="button button-small tq-icon-btn" title="Generate page" aria-label="Generate page"><span class="dashicons dashicons-admin-site"></span></button>';
                 $page_cell .= '</form>';
             }
 
@@ -229,29 +221,48 @@ class TQ_Admin_Menu {
             echo '<td>' . esc_html( $set['question_count'] ) . '</td>';
             echo '<td style="white-space:nowrap;">';
             echo '<code id="' . esc_attr( $shortcode_id ) . '" style="font-size:11px;">' . esc_html( $shortcode ) . '</code> ';
-            echo '<button type="button" class="button button-small" onclick="tqCopyShortcode(' . "'" . esc_js( $shortcode_id ) . "'" . ')">Copy</button>';
+            echo '<button type="button" class="button button-small tq-icon-btn" title="Copy shortcode" aria-label="Copy shortcode" onclick="tqCopyShortcode(' . "'" . esc_js( $shortcode_id ) . "'" . ')"><span class="dashicons dashicons-admin-page"></span></button>';
             echo '</td>';
-            echo '<td>' . wp_kses_post( $page_cell ) . '</td>';
-            echo '<td><a class="button button-small" href="' . esc_url( $edit_link ) . '">Edit</a> ';
-            echo '<a class="button button-small" href="' . esc_url( $questions_link ) . '">Questions</a> ';
-            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;">';
+            echo '<td>' . $page_cell . '</td>';
+            echo '<td class="tq-actions"><a class="button button-small tq-icon-btn" title="Edit set" aria-label="Edit set" href="' . esc_url( $edit_link ) . '"><span class="dashicons dashicons-edit"></span></a> ';
+            echo '<a class="button button-small tq-icon-btn" title="Open question bank" aria-label="Open question bank" href="' . esc_url( $questions_link ) . '"><span class="dashicons dashicons-editor-help"></span></a> ';
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;vertical-align:middle;">';
             wp_nonce_field( 'tq_delete_set_' . $sid );
             echo '<input type="hidden" name="action" value="tq_delete_set" />';
             echo '<input type="hidden" name="set_id" value="' . esc_attr( $sid ) . '" />';
-            echo '<button class="button button-small" onclick="return confirm(\'Delete this set?\')">Delete</button>';
+            echo '<button class="button button-small tq-icon-btn tq-icon-danger" title="Delete set" aria-label="Delete set" onclick="return confirm(\'Delete this set?\')"><span class="dashicons dashicons-trash"></span></button>';
             echo '</form></td>';
             echo '</tr>';
         }
         echo '</tbody></table>';
         echo '</div>';
+
+        echo '<div id="tq-set-modal" class="tq-modal' . esc_attr( $modal_open ) . '">';
+        echo '<div class="tq-modal-backdrop bg-slate-950/45 backdrop-blur-sm" data-tq-close-modal="tq-set-modal"></div>';
+        echo '<div class="tq-modal-dialog rounded-3xl border border-slate-200 bg-white shadow-2xl">';
+        echo '<div class="tq-modal-head flex items-center justify-between border-b border-slate-200 px-6 py-5"><div><p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">TechiQuiz</p><h2 class="mt-1 text-2xl font-bold text-slate-900">' . ( $editing_data ? 'Edit Set' : 'Create New Set' ) . '</h2></div>';
+        echo '<button type="button" class="tq-modal-close inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700" aria-label="Close" data-tq-close-modal="tq-set-modal">&times;</button></div>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="tq-modal-form space-y-5 px-6 py-6">';
+        wp_nonce_field( 'tq_save_set' );
+        echo '<input type="hidden" name="action" value="tq_save_set" />';
+        echo '<input type="hidden" name="set_id" value="' . esc_attr( $editing_id ) . '" />';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Course</label><select class="!h-11 !w-full !max-w-full !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="course_id" required>';
+        echo '<option value="">Select course</option>';
+        foreach ( $courses as $course ) {
+            echo '<option value="' . esc_attr( $course['id'] ) . '" ' . selected( (int) ( $editing_data['course_id'] ?? 0 ), (int) $course['id'], false ) . '>' . esc_html( $course['title'] ) . '</option>';
+        }
+        echo '</select></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Title</label><input class="regular-text !h-11 !rounded-xl border !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="title" required value="' . esc_attr( $editing_data['title'] ?? '' ) . '" /></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Day Label</label><input class="regular-text !h-11 !rounded-xl border !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="day_label" required value="' . esc_attr( $editing_data['day_label'] ?? '' ) . '" /></p>';
+        echo '<div class="grid gap-4 md:grid-cols-2">';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Mode</label><select class="!h-11 !w-full !max-w-full !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="mode"><option value="study" ' . selected( $editing_data['mode'] ?? 'study', 'study', false ) . '>Study</option><option value="practice" ' . selected( $editing_data['mode'] ?? 'study', 'practice', false ) . '>Practice</option></select></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Version</label><input class="!h-11 !w-full !max-w-full !rounded-xl !border !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" type="number" min="1" name="version" value="' . esc_attr( $editing_data['version'] ?? 1 ) . '" /></p>';
         echo '</div>';
-        /* clipboard helper */
-        echo '<script>function tqCopyShortcode(id){';
-        echo 'var el=document.getElementById(id);if(!el)return;';
-        echo 'navigator.clipboard?navigator.clipboard.writeText(el.textContent)';
-        echo '.then(function(){alert("Shortcode copied!")})'
-        . '.catch(function(){prompt("Copy this shortcode:",el.textContent)})';
-        echo ':prompt("Copy this shortcode:",el.textContent);}</script>';
+        echo '<p><label class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
+        submit_button( $editing_data ? 'Update Set' : 'Create Set', 'primary tq-btn-primary !m-0 !h-11 !rounded-xl !border-brand-red !bg-brand-red !px-5 !text-sm !font-semibold !text-white hover:!bg-red-700' );
+        echo '</form></div></div>';
+
+        echo '<script>(function(){var b=document.body;window.tqCopyShortcode=function(id){var el=document.getElementById(id);if(!el)return;navigator.clipboard?navigator.clipboard.writeText(el.textContent).then(function(){}).catch(function(){prompt("Copy this shortcode:",el.textContent);}):prompt("Copy this shortcode:",el.textContent);};document.querySelectorAll("[data-tq-open-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-open-modal");var m=document.getElementById(id);if(m){m.classList.add("tq-modal-open");b.classList.add("tq-no-scroll");}});});document.querySelectorAll("[data-tq-close-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-close-modal");var m=document.getElementById(id);if(m){m.classList.remove("tq-modal-open");b.classList.remove("tq-no-scroll");}});});})();</script>';
         echo '</div>';
     }
 
@@ -278,6 +289,7 @@ class TQ_Admin_Menu {
         $editing_id      = isset( $_GET['edit'] ) ? absint( wp_unslash( $_GET['edit'] ) ) : 0;
         $editing_data    = $editing_id ? $this->db->get_question_by_id( $editing_id ) : null;
         $editing_choices = $editing_id ? $this->db->get_choices_by_question( $editing_id ) : array();
+        $modal_open      = $editing_id > 0 ? ' tq-modal-open' : '';
 
         $choice_map = array(
             'A' => '',
@@ -294,11 +306,12 @@ class TQ_Admin_Menu {
             }
         }
 
-        echo '<div class="wrap tq-admin">';
-        echo '<h1 class="tq-title">TechiQuiz Question Bank</h1>';
+        echo '<div class="wrap tq-admin tq-page-questions">';
+        echo '<div class="tq-page-head flex items-center justify-between gap-3 mb-4"><h1 class="tq-title text-slate-900 text-5xl font-extrabold tracking-tight m-0">TechiQuiz Question Bank</h1>';
+        echo '<button type="button" class="button button-primary tq-create-btn !bg-blue-600 hover:!bg-blue-700 !border-blue-700 !text-white !rounded-xl !px-4 !py-2 !inline-flex !items-center !gap-2" data-tq-open-modal="tq-question-modal"><span class="dashicons dashicons-plus-alt2"></span> ' . ( $editing_data ? 'Edit Question' : 'Create New Question' ) . '</button></div>';
         $this->render_notice();
 
-        echo '<p><label>Set:</label> <select onchange="if(this.value){window.location=this.value}">';
+        echo '<div class="tq-card tq-toolbar rounded-2xl border border-slate-200 bg-white shadow-sm p-4 mb-4"><p><label>Set:</label> <select class="!min-w-[280px]" onchange="if(this.value){window.location=this.value}">';
         foreach ( $sets as $entry ) {
             $target = add_query_arg(
                 array(
@@ -309,47 +322,17 @@ class TQ_Admin_Menu {
             );
             echo '<option value="' . esc_url( $target ) . '" ' . selected( (int) $entry['id'], (int) $set_id, false ) . '>' . esc_html( $entry['title'] . ' (' . ucfirst( $entry['mode'] ) . ')' ) . '</option>';
         }
-        echo '</select></p>';
+        echo '</select></p></div>';
 
         if ( ! $set_id ) {
             echo '<p>Create a set first.</p></div>';
             return;
         }
 
-        echo '<div class="tq-grid">';
-        echo '<div class="tq-card">';
-        echo '<h2>' . ( $editing_data ? 'Edit Question' : 'Add Question' ) . '</h2>';
-        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-        wp_nonce_field( 'tq_save_question' );
-        echo '<input type="hidden" name="action" value="tq_save_question" />';
-        echo '<input type="hidden" name="set_id" value="' . esc_attr( $set_id ) . '" />';
-        echo '<input type="hidden" name="question_id" value="' . esc_attr( $editing_id ) . '" />';
-
-        echo '<p><label>Question Type</label><select name="question_type"><option value="single_choice" ' . selected( $editing_data['question_type'] ?? 'single_choice', 'single_choice', false ) . '>Single Choice</option><option value="objective_math" ' . selected( $editing_data['question_type'] ?? 'single_choice', 'objective_math', false ) . '>Objective Math</option></select></p>';
-        echo '<p><label>Prompt Format</label><select name="prompt_format"><option value="plain" ' . selected( $editing_data['prompt_format'] ?? 'plain', 'plain', false ) . '>Plain</option><option value="mixed" ' . selected( $editing_data['prompt_format'] ?? 'plain', 'mixed', false ) . '>Mixed</option><option value="latex" ' . selected( $editing_data['prompt_format'] ?? 'plain', 'latex', false ) . '>LaTeX</option></select></p>';
-        echo '<p><label>Prompt</label><textarea name="prompt" rows="5" class="large-text" required>' . esc_textarea( $editing_data['prompt'] ?? '' ) . '</textarea></p>';
-        echo '<p><label>Explanation (optional)</label><textarea name="explanation" rows="3" class="large-text">' . esc_textarea( $editing_data['explanation'] ?? '' ) . '</textarea></p>';
-        echo '<p><label>Display Order</label><input type="number" min="1" name="display_order" value="' . esc_attr( $editing_data['display_order'] ?? 1 ) . '" /></p>';
-
-        echo '<h3>Choices</h3>';
-        foreach ( $choice_map as $key => $value ) {
-            echo '<p><label>Choice ' . esc_html( $key ) . '</label><input class="large-text" name="choice_' . esc_attr( strtolower( $key ) ) . '" required value="' . esc_attr( $value ) . '" /></p>';
-        }
-        echo '<p><label>Correct Choice</label><select name="correct_choice">';
-        foreach ( array( 'A', 'B', 'C', 'D' ) as $letter ) {
-            echo '<option value="' . esc_attr( $letter ) . '" ' . selected( $correct_key, $letter, false ) . '>' . esc_html( $letter ) . '</option>';
-        }
-        echo '</select></p>';
-        echo '<p><label><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
-
-        submit_button( $editing_data ? 'Update Question' : 'Create Question', 'primary tq-btn-primary' );
-        echo '</form>';
-        echo '</div>';
-
-        echo '<div class="tq-card">';
+        echo '<div class="tq-card rounded-2xl border border-slate-200 bg-white shadow-sm p-4">';
         echo '<h2>Questions in Set: ' . esc_html( $set['title'] ) . '</h2>';
         echo '<p><strong>Total:</strong> ' . esc_html( (string) $total_questions ) . ' questions' . ' | <strong>Page:</strong> ' . esc_html( (string) $current_page ) . ' of ' . esc_html( (string) $total_pages ) . '</p>';
-        echo '<table class="widefat striped"><thead><tr><th>Order</th><th>Type</th><th>Prompt</th><th>Actions</th></tr></thead><tbody>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>Order</th><th>Type</th><th>Prompt</th><th>Actions</th></tr></thead><tbody>';
         foreach ( $questions as $question ) {
             $edit_link = add_query_arg(
                 array(
@@ -363,13 +346,13 @@ class TQ_Admin_Menu {
             echo '<td>' . esc_html( $question['display_order'] ) . '</td>';
             echo '<td>' . esc_html( $question['question_type'] ) . '</td>';
             echo '<td>' . esc_html( wp_trim_words( wp_strip_all_tags( $question['prompt'] ), 14, '…' ) ) . '</td>';
-            echo '<td><a class="button button-small" href="' . esc_url( $edit_link ) . '">Edit</a> ';
-            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;">';
+            echo '<td class="tq-actions"><a class="button button-small tq-icon-btn" title="Edit question" aria-label="Edit question" href="' . esc_url( $edit_link ) . '"><span class="dashicons dashicons-edit"></span></a> ';
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;vertical-align:middle;">';
             wp_nonce_field( 'tq_delete_question_' . (int) $question['id'] );
             echo '<input type="hidden" name="action" value="tq_delete_question" />';
             echo '<input type="hidden" name="set_id" value="' . esc_attr( $set_id ) . '" />';
             echo '<input type="hidden" name="question_id" value="' . esc_attr( $question['id'] ) . '" />';
-            echo '<button class="button button-small" onclick="return confirm(\'Delete this question?\')">Delete</button>';
+            echo '<button class="button button-small tq-icon-btn tq-icon-danger" title="Delete question" aria-label="Delete question" onclick="return confirm(\'Delete this question?\')"><span class="dashicons dashicons-trash"></span></button>';
             echo '</form></td>';
             echo '</tr>';
         }
@@ -389,19 +372,58 @@ class TQ_Admin_Menu {
                     'format'    => '',
                     'current'   => $current_page,
                     'total'     => $total_pages,
-                    'type'      => 'list',
+                    'type'      => 'array',
                     'prev_text' => '&laquo; Prev',
                     'next_text' => 'Next &raquo;',
                 )
             );
 
-            if ( ! empty( $page_links ) ) {
-                echo '<div class="tablenav"><div class="tablenav-pages">' . wp_kses_post( $page_links ) . '</div></div>';
+            if ( ! empty( $page_links ) && is_array( $page_links ) ) {
+                echo '<nav class="mt-4 pt-3 border-t border-slate-200" aria-label="Questions pagination">';
+                echo '<div class="flex flex-wrap items-center justify-end gap-2">';
+                foreach ( $page_links as $link ) {
+                    $item = str_replace( 'page-numbers', 'page-numbers inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50', $link );
+                    $item = str_replace( 'current', 'current !bg-blue-600 !border-blue-600 !text-white', $item );
+                    echo wp_kses_post( $item );
+                }
+                echo '</div>';
+                echo '</nav>';
             }
         }
 
         echo '</div>';
+
+        echo '<div id="tq-question-modal" class="tq-modal' . esc_attr( $modal_open ) . '">';
+        echo '<div class="tq-modal-backdrop bg-slate-950/45 backdrop-blur-sm" data-tq-close-modal="tq-question-modal"></div>';
+        echo '<div class="tq-modal-dialog rounded-3xl border border-slate-200 bg-white shadow-2xl">';
+        echo '<div class="tq-modal-head flex items-center justify-between border-b border-slate-200 px-6 py-5"><div><p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">TechiQuiz</p><h2 class="mt-1 text-2xl font-bold text-slate-900">' . ( $editing_data ? 'Edit Question' : 'Create New Question' ) . '</h2></div>';
+        echo '<button type="button" class="tq-modal-close inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700" aria-label="Close" data-tq-close-modal="tq-question-modal">&times;</button></div>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="tq-modal-form space-y-5 px-6 py-6">';
+        wp_nonce_field( 'tq_save_question' );
+        echo '<input type="hidden" name="action" value="tq_save_question" />';
+        echo '<input type="hidden" name="set_id" value="' . esc_attr( $set_id ) . '" />';
+        echo '<input type="hidden" name="question_id" value="' . esc_attr( $editing_id ) . '" />';
+        echo '<div class="grid gap-4 md:grid-cols-2">';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Question Type</label><select class="!h-11 !w-full !max-w-full !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="question_type"><option value="single_choice" ' . selected( $editing_data['question_type'] ?? 'single_choice', 'single_choice', false ) . '>Single Choice</option><option value="objective_math" ' . selected( $editing_data['question_type'] ?? 'single_choice', 'objective_math', false ) . '>Objective Math</option></select></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Prompt Format</label><select class="!h-11 !w-full !max-w-full !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="prompt_format"><option value="plain" ' . selected( $editing_data['prompt_format'] ?? 'plain', 'plain', false ) . '>Plain</option><option value="mixed" ' . selected( $editing_data['prompt_format'] ?? 'plain', 'mixed', false ) . '>Mixed</option><option value="latex" ' . selected( $editing_data['prompt_format'] ?? 'plain', 'latex', false ) . '>LaTeX</option></select></p>';
         echo '</div>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Prompt</label><textarea name="prompt" rows="5" class="large-text !rounded-2xl !border-slate-300 !px-4 !py-3 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" required>' . esc_textarea( $editing_data['prompt'] ?? '' ) . '</textarea></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Explanation (optional)</label><textarea name="explanation" rows="3" class="large-text !rounded-2xl !border-slate-300 !px-4 !py-3 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20">' . esc_textarea( $editing_data['explanation'] ?? '' ) . '</textarea></p>';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Display Order</label><input class="!h-11 !w-full !max-w-full !rounded-xl !border !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" type="number" min="1" name="display_order" value="' . esc_attr( $editing_data['display_order'] ?? 1 ) . '" /></p>';
+        echo '<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><h3 class="m-0 mb-4 text-base font-bold text-slate-900">Choices</h3>';
+        foreach ( $choice_map as $key => $value ) {
+            echo '<p class="space-y-2 mb-3 last:mb-0"><label class="block text-sm font-semibold text-slate-800">Choice ' . esc_html( $key ) . '</label><input class="large-text !h-11 !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="choice_' . esc_attr( strtolower( $key ) ) . '" required value="' . esc_attr( $value ) . '" /></p>';
+        }
+        echo '<p class="space-y-2 mt-4"><label class="block text-sm font-semibold text-slate-800">Correct Choice</label><select class="!h-11 !w-full !max-w-full !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="correct_choice">';
+        foreach ( array( 'A', 'B', 'C', 'D' ) as $letter ) {
+            echo '<option value="' . esc_attr( $letter ) . '" ' . selected( $correct_key, $letter, false ) . '>' . esc_html( $letter ) . '</option>';
+        }
+        echo '</select></p></div>';
+        echo '<p><label class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
+        submit_button( $editing_data ? 'Update Question' : 'Create Question', 'primary tq-btn-primary !m-0 !h-11 !rounded-xl !border-brand-red !bg-brand-red !px-5 !text-sm !font-semibold !text-white hover:!bg-red-700' );
+        echo '</form></div></div>';
+
+        echo '<script>(function(){var b=document.body;document.querySelectorAll("[data-tq-open-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-open-modal");var m=document.getElementById(id);if(m){m.classList.add("tq-modal-open");b.classList.add("tq-no-scroll");}});});document.querySelectorAll("[data-tq-close-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-close-modal");var m=document.getElementById(id);if(m){m.classList.remove("tq-modal-open");b.classList.remove("tq-no-scroll");}});});})();</script>';
         echo '</div>';
     }
 
@@ -769,10 +791,16 @@ class TQ_Admin_Menu {
         $this->assert_admin();
 
         $set_id = isset( $_POST['set_id'] ) ? absint( wp_unslash( $_POST['set_id'] ) ) : 0;
-        check_admin_referer( 'tq_generate_page_' . $set_id );
+        $nonce  = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+
+        if ( $set_id <= 0 || empty( $nonce ) || ! wp_verify_nonce( $nonce, 'tq_generate_page_' . $set_id ) ) {
+            error_log( 'TechiQuiz: generate_quiz_page nonce validation failed for set_id=' . $set_id );
+            $this->redirect_with_notice( 'tq-sets', 'page_error' );
+        }
 
         $set = $this->db->get_set( $set_id );
         if ( ! $set || $set_id <= 0 ) {
+            error_log( 'TechiQuiz: generate_quiz_page set lookup failed for set_id=' . $set_id );
             wp_die( esc_html__( 'Invalid quiz set.', 'techiquiz' ) );
         }
 
@@ -798,6 +826,7 @@ class TQ_Admin_Menu {
         );
 
         if ( is_wp_error( $page_id ) ) {
+            error_log( 'TechiQuiz: generate_quiz_page wp_insert_post error for set_id=' . $set_id . ' | ' . $page_id->get_error_message() );
             $this->redirect_with_notice( 'tq-sets', 'page_error' );
         }
 

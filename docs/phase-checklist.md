@@ -60,7 +60,7 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Add capability checks (`manage_options` or custom capabilities)
 
 ### Exit Criteria
-- [ ] Admin can create and preview a complete quiz set manually
+- [x] Admin can create and preview a complete quiz set manually
 
 ---
 
