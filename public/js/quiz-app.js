@@ -44,6 +44,7 @@
     const questionEl    = wrapper.querySelector('[data-tq-question]');
     const qNumEl        = wrapper.querySelector('[data-tq-q-num]');
     const promptEl      = wrapper.querySelector('[data-tq-prompt]');
+    const questionIdEl  = wrapper.querySelector('[data-tq-question-id]');
     const choicesEl     = wrapper.querySelector('[data-tq-choices]');
     const feedbackEl    = wrapper.querySelector('[data-tq-feedback]');
     const submitBtn     = wrapper.querySelector('[data-tq-submit]');
@@ -57,8 +58,10 @@
 
     let sessionId  = 0;
     let index      = 0;
+    let quizLength = 0;
     let questions  = [];
     let submitting = false;
+    const submitIdleText = (submitBtn && submitBtn.textContent ? submitBtn.textContent : 'Submit').trim();
 
     const choiceBaseClass =
       'group flex cursor-pointer items-start gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 transition duration-150 hover:border-brand-blue/40 hover:bg-indigo-50/50';
@@ -83,11 +86,12 @@
 
     /* ── Progress bar ─────────────────────────────────────────────────── */
     function updateProgress() {
-      const total = questions.length;
+      const total = quizLength || questions.length;
       const done  = Math.min(index, total);
       const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+      const modeLabel = mode === 'practice' ? 'practice' : 'test';
       progressBarEl.style.width = pct + '%';
-      progressTextEl.textContent = `Question ${done + 1} of ${total}`;
+      progressTextEl.textContent = `Question ${done + 1} of ${total} (${modeLabel})`;
     }
 
     /* ── Render one question ──────────────────────────────────────────── */
@@ -101,10 +105,15 @@
       submitting = false;
       qNumEl.textContent  = index + 1;
       promptEl.textContent = q.prompt;
+      if (questionIdEl) {
+        const qIdentifier = (q.question_identifier || '').toString().trim() || `Q-${q.id}`;
+        questionIdEl.textContent = `Question ID: ${qIdentifier}`;
+      }
       hideFeedback();
       nextBtn.classList.add('hidden');
       submitBtn.classList.remove('hidden');
       submitBtn.disabled = false;
+      submitBtn.textContent = submitIdleText;
       updateProgress();
 
       /* build choice rows */
@@ -204,7 +213,8 @@
 
       submitting         = true;
       submitBtn.disabled = true;
-      submitBtn.classList.add('hidden');
+      submitBtn.textContent = 'Checking...';
+      showFeedback('Checking answer...', 'info');
 
       const q = questions[index];
 
@@ -217,34 +227,33 @@
 
         if (mode === 'study') {
           const picked = selectedRow();
-          disableChoices(false);
-
           if (result.is_correct) {
+            disableChoices(false);
             picked && updateChoiceVisual(picked, 'correct');
             showFeedback('✓  Correct!', 'ok');
+            submitBtn.textContent = submitIdleText;
+            submitBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
           } else {
             picked && updateChoiceVisual(picked, 'wrong');
-            /* highlight the correct choice */
-            if (result.correct_choice_id) {
-              choicesEl.querySelectorAll('label').forEach((r) => {
-                if (Number(r.dataset.choiceId) === result.correct_choice_id) {
-                  updateChoiceVisual(r, 'correct');
-                }
-              });
-            }
-            showFeedback('✗  Incorrect — the correct answer is highlighted above.', 'err');
+            submitting         = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = submitIdleText;
+            showFeedback('✗  Incorrect. Try again.', 'err');
+            return;
           }
         } else {
           /* practice mode: record silently, just show Next */
           showFeedback('Answer recorded.', 'info');
           disableChoices(true);
+          submitBtn.textContent = submitIdleText;
+          submitBtn.classList.add('hidden');
+          nextBtn.classList.remove('hidden');
         }
-
-        nextBtn.classList.remove('hidden');
       } catch (err) {
         submitting         = false;
         submitBtn.disabled = false;
-        submitBtn.classList.remove('hidden');
+        submitBtn.textContent = submitIdleText;
         showFeedback(err.message || 'Submission error — please try again.', 'err');
       }
     }
@@ -366,9 +375,14 @@
     ])
       .then(([setPayload, sessionPayload]) => {
         questions  = setPayload.questions || [];
+        quizLength = Number(setPayload.quiz_length || questions.length || 0);
         sessionId  = Number(sessionPayload.session_id || 0);
         index      = Number(sessionPayload.current_index || 0);
-        if (index < 0 || index >= questions.length) index = 0;
+        if (index < 0) {
+          index = 0;
+        } else if (index > questions.length) {
+          index = questions.length;
+        }
 
         /* populate header */
         setTitleEl.textContent = setPayload.set_title || 'Quiz';

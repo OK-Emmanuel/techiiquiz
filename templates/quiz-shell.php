@@ -111,7 +111,10 @@ Main Quiz Wrapper
                 </div>
 
                 <!-- Question prompt -->
-                <p data-tq-prompt class="pt-1 text-lg font-medium leading-relaxed text-slate-900 sm:text-xl"></p>
+                <div class="pt-1">
+                    <p data-tq-prompt class="text-lg font-medium leading-relaxed text-slate-900 sm:text-xl"></p>
+                    <p data-tq-question-id class="mt-1 text-sm font-medium text-slate-500 sm:text-base"></p>
+                </div>
             </div>
 
             <!-- Multiple choice answers container -->

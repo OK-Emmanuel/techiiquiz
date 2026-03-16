@@ -102,10 +102,14 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Implement protected shortcode route for Study mode
 - [x] Implement protected shortcode route for Practice mode
 - [x] Study mode: evaluate answer attempts per question
+- [x] Study mode: on incorrect answers, prompt retry without revealing the correct option
 - [x] Study mode: block next question until correct answer selected
 - [x] Practice mode: store answers without immediate correctness feedback
 - [x] Practice mode: compute final score at completion
 - [x] Practice mode: generate missed-question review list
+- [x] Runtime: mode-based quiz length limits and progress text (35 test / 100 practice)
+- [x] Runtime: show per-question identifier below prompt for issue reporting
+- [x] Runtime: reduce answer-submit latency by removing extra lookup and keeping immediate submit feedback
 - [x] Review mode: mark student incorrect selection with X
 - [x] Review mode: emphasize correct option
 - [x] Persist progress for interrupted sessions

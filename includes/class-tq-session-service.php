@@ -75,7 +75,6 @@ class TQ_Session_Service {
                 'is_correct'        => (bool) $evaluation['is_correct'],
                 'can_advance'       => (bool) $evaluation['is_correct'],
                 'message'           => $evaluation['message'],
-                'correct_choice_id' => (int) $evaluation['correct_choice_id'],
             );
         }
 
@@ -100,7 +99,7 @@ class TQ_Session_Service {
             return new WP_Error( 'invalid_mode', 'Only practice sessions can be completed with scoring.' );
         }
 
-        $result = $this->quiz_service->calculate_practice_score( $session_id, (int) $session['set_id'] );
+        $result = $this->quiz_service->calculate_practice_score( $session_id, (int) $session['set_id'], (string) $session['mode'] );
 
         $this->db->complete_session( $session_id, $result['score_percent'] );
 
@@ -118,7 +117,7 @@ class TQ_Session_Service {
     }
 
     private function get_resume_index( $session_id, $set_id, $mode ) {
-        $questions = $this->db->get_set_questions( $set_id );
+        $questions = $this->db->get_set_questions( $set_id, $this->quiz_service->get_question_limit_for_mode( $mode ) );
         $answers   = $this->db->get_session_answers( $session_id );
 
         if ( empty( $questions ) || empty( $answers ) ) {
@@ -135,9 +134,17 @@ class TQ_Session_Service {
         }
 
         if ( 'practice' === $mode ) {
+            $allowed_question_ids = array();
+            foreach ( $questions as $question ) {
+                $allowed_question_ids[ (int) $question['id'] ] = true;
+            }
+
             $answered = array();
             foreach ( $answers as $answer ) {
-                $answered[ (int) $answer['question_id'] ] = true;
+                $question_id = (int) $answer['question_id'];
+                if ( isset( $allowed_question_ids[ $question_id ] ) ) {
+                    $answered[ $question_id ] = true;
+                }
             }
 
             return count( $answered );

@@ -443,26 +443,62 @@ class TQ_DB {
         return $count;
     }
 
-    public function get_set_questions( $set_id ) {
+    public function get_set_questions( $set_id, $limit = 0 ) {
         global $wpdb;
 
-        $questions = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT * FROM {$this->table( 'questions' )} WHERE set_id = %d AND active = 1 ORDER BY display_order ASC",
-                $set_id
-            ),
-            ARRAY_A
-        );
+        $set_id = (int) $set_id;
+        $limit  = (int) $limit;
 
-        foreach ( $questions as &$question ) {
-            $question['choices'] = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT id, choice_key, choice_text, is_correct FROM {$this->table( 'choices' )} WHERE question_id = %d ORDER BY id ASC",
-                    (int) $question['id']
-                ),
+        $query = "SELECT * FROM {$this->table( 'questions' )} WHERE set_id = %d AND active = 1 ORDER BY display_order ASC";
+
+        if ( $limit > 0 ) {
+            $questions = $wpdb->get_results(
+                $wpdb->prepare( $query . ' LIMIT %d', $set_id, $limit ),
+                ARRAY_A
+            );
+        } else {
+            $questions = $wpdb->get_results(
+                $wpdb->prepare( $query, $set_id ),
                 ARRAY_A
             );
         }
+
+        if ( empty( $questions ) ) {
+            return array();
+        }
+
+        $question_ids = array_map(
+            static function ( $question ) {
+                return (int) $question['id'];
+            },
+            $questions
+        );
+
+        $placeholders = implode( ',', array_fill( 0, count( $question_ids ), '%d' ) );
+        $choices_sql  = "SELECT id, question_id, choice_key, choice_text, is_correct
+                         FROM {$this->table( 'choices' )}
+                         WHERE question_id IN ({$placeholders})
+                         ORDER BY question_id ASC, id ASC";
+
+        $choices = $wpdb->get_results(
+            $wpdb->prepare( $choices_sql, ...$question_ids ),
+            ARRAY_A
+        );
+
+        $choices_by_question = array();
+        foreach ( $choices as $choice ) {
+            $question_id = (int) $choice['question_id'];
+            if ( ! isset( $choices_by_question[ $question_id ] ) ) {
+                $choices_by_question[ $question_id ] = array();
+            }
+            $choices_by_question[ $question_id ][] = $choice;
+        }
+
+        foreach ( $questions as &$question ) {
+            $question_id          = (int) $question['id'];
+            $question['choices']  = isset( $choices_by_question[ $question_id ] ) ? $choices_by_question[ $question_id ] : array();
+        }
+        unset( $question );
 
         return $questions;
     }
