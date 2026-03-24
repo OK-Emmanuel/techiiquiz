@@ -48,4 +48,8 @@ class TQ_Assets {
         wp_enqueue_style( 'tq-quiz' );
         wp_enqueue_script( 'tq-quiz-app' );
     }
+
+    public static function enqueue_public_style() {
+        wp_enqueue_style( 'tq-quiz' );
+    }
 }

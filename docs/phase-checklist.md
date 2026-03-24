@@ -32,7 +32,7 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Local/staging environment checklist completed
 
 ### Execution Tasks
-- [ ] Confirm plugin stack versions (WordPress, PHP, WooCommerce, MemberPress, WooCommerce Bookings)
+- [x] Confirm plugin stack versions (WordPress, PHP, WooCommerce, Custom Techiquiz plugin)
 - [ ] Define access matrix (membership/product -> quiz set entitlement)
 - [ ] Complete technical spike for session + scoring logic
 - [ ] Approve UI wireframe for Study and Practice screens
@@ -45,7 +45,7 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 ## Phase 1 — Core Data + Admin Foundation (4–6 days)
 
 ### Deliverables
-- [ ] Database migrations run on plugin activation
+- [x] Database migrations run on plugin activation
 - [x] Admin menus and CRUD for courses/sets/questions
 - [x] Basic import staging screen available
 
@@ -119,51 +119,148 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 
 ---
 
-## Phase 4 — Access, Checkout, and Credential Automation (3–5 days)
+## Phase 4 — Booking Schema & Admin (6–8 days)
 
 ### Deliverables
-- [ ] Entitlement checks tied to purchases/membership
-- [ ] Student ID + temporary credential onboarding flow
-- [ ] Email templates/events for provisioning
+- [ ] Database schema for classes, instances, enrollments, entitlements
+- [ ] Admin UI for class management (create, edit, delete)
+- [ ] Admin UI for class instance/booking calendar (create, edit, delete)
+- [ ] WooCommerce webhook handler for order completion
 
 ### Execution Tasks
-- [ ] Add order completion hook handler
-- [ ] Generate and assign student ID on successful completion
-- [ ] Implement secure one-time onboarding/reset flow (no plain temp password storage)
-- [ ] Add purchased class resource links to confirmation email
-- [ ] Build admin provisioning diagnostics panel
+
+#### 4a: Database Schema & Activation
+- [x] Create DB migration in activator: `tq_classes` table
+- [x] Create DB migration in activator: `tq_class_instances` table
+- [x] Create DB migration in activator: `tq_enrollments` table
+- [x] Create DB migration in activator: `tq_entitlements` table
+- [x] Create DB migration in activator: `tq_provisioning_logs` table (for debugging)
+- [x] Add indexes for performance (user, class_instance, product_id, access window)
+- [x] Test: Fresh activation creates tables with no errors
+
+#### 4b: Admin UI — Classes
+- [x] Build admin page: Classes list (name, code, workbook URL, # instances)
+- [x] Build form: Add new class (name, code, workbook URL)
+- [x] Build form: Edit class
+- [x] Build form: Delete class (with confirmation)
+- [ ] Test: CRUD operations work end-to-end
+
+#### 4c: Admin UI — Class Instances (Booking Calendar)
+- [x] Build admin page: Class instances list (class name, dates, capacity, enrollments)
+- [x] Build form: Add new instance (select class, start date, end date, max capacity)
+- [x] Build form: Map instance to WooCommerce product (dropdown of products)
+- [x] Build form: Edit instance
+- [x] Build form: Delete instance (with confirmation + cascade warning)
+- [x] Display: Calculated access_end date based on end_date + 45 days
+- [ ] Test: Can create, map to product, edit, delete instances
+
+#### 4d: WooCommerce Webhook Handler
+- [x] Create REST endpoint: `POST /wp-json/tq/v1/webhook/order-completed`
+- [x] Add admin simulation action (run provisioning by WooCommerce order ID from Provisioning Logs)
+- [ ] Implement handler logic:
+  - [x] Receive order_id, customer_email, line_items from WooCommerce
+  - [x] Find class instance by product_id
+  - [x] Find or create WordPress user by email (with temp password if new)
+  - [x] Create enrollment record
+  - [x] Create entitlements (quiz + workbook, both with same access window)
+  - [x] Log to provisioning_logs table
+  - [x] Send onboarding email with login credentials
+- [x] Add webhook registration (hook into `woocommerce_order_status_completed`)
+- [ ] Test: Manually trigger order completion, verify entitlements created in DB
+- [ ] Test: New user created and email sent
+- [ ] Test: Existing user reused on second purchase
 
 ### Exit Criteria
-- [ ] Newly paid student can access entitled quiz sets immediately after provisioning
+- [ ] Admin can create a class template and instance
+- [ ] Admin can map instance to WooCommerce product
+- [ ] When order completes, webhook fires and creates entitlements
+- [ ] Customer receives onboarding email
+- [ ] Database contains enrollment and entitlement records
 
 ---
 
-## Phase 5 — Booking and Learning Experience Integration (3–4 days)
+## Phase 5 — Access Control & Enrollment Reports (4–5 days)
 
 ### Deliverables
-- [ ] Booking-to-learning linkage
-- [ ] Post-booking curriculum/resource panel
-- [ ] Class rules display component
+- [ ] Quiz shortcode protected by entitlement checks
+- [ ] Workbook download shortcode (also protected)
+- [ ] Admin enrollment roster with CSV export
+- [ ] Admin settings page for question limits (dynamically configurable)
+- [ ] Full integration test (end-to-end flow)
 
 ### Execution Tasks
-- [ ] Surface booking details and prep-material quick links
-- [ ] Render class rules on booking/course pages
-- [ ] Validate 3-month rolling calendar view via booking plugin configuration
+
+#### 5a: Access Control — Quiz Shortcode
+- [x] Modify quiz shortcode handler to check entitlements
+- [x] Create helper function: `user_has_active_entitlement($user_id, $class_id, $resource_type)`
+  - [x] Query entitlements for user + resource
+  - [x] Check: access_start <= TODAY <= access_end
+  - [x] Check: is_active = true
+  - [x] Return boolean
+- [x] If no entitlement: show "Your access is not yet available or has expired"
+- [x] If entitlement active: render quiz as before
+- [ ] Test: User without entitlement blocked
+- [ ] Test: User with entitlement allowed
+- [ ] Test: After expiry date, user blocked
+
+#### 5b: Access Control — Workbook Shortcode
+- [x] Create new shortcode: `[tq_workbook class="dr1"]`
+- [x] Query `tq_classes` by course code
+- [x] Get `workbook_url` from class
+- [x] Check entitlements (same logic as quiz)
+- [x] If active: show download button → redirect to PDF URL
+- [x] If inactive: show "Your access is not yet available or has expired"
+- [ ] Test: Same as quiz shortcode tests
+
+#### 5c: Admin UI — Enrollment Reports
+- [x] Build admin page: Enrollment roster
+  - [x] Dropdown: Select class instance
+  - [x] Display table: user name, email, enrollment date, entitlement status (active/expired)
+  - [x] Add button: Export to CSV
+- [x] CSV export includes: user email, class name, start date, end date, access_end date, status
+- [ ] Test: Export produces valid CSV
+- [ ] Test: Filter by instance works
+
+#### 5d: Admin UI — Question Limits Settings
+- [x] Add new admin submenu: TechiQuiz → Settings
+- [x] Build form:
+  - [x] Input: Study mode question limit (default 100)
+  - [x] Input: Practice mode question limit (default 35)
+  - [x] Save button
+- [x] Store in `wp_options` (keys: `tq_study_limit`, `tq_practice_limit`)
+- [x] Modify `TQ_Quiz_Service::get_question_limit_for_mode()` to read from options
+- [ ] Test: Update settings, quiz reflects new limits
+
+#### 5e: Integration Testing (Full End-to-End)
+- [x] Added admin Integration QA page (live diagnostics + persisted scenario runner checklist)
+- [ ] Test scenario: Admin creates class → Instance → Maps to product
+- [ ] Test scenario: Customer buys on WooCommerce
+- [ ] Test scenario: Webhook fires, user created, entitlements created
+- [ ] Test scenario: Customer logs in, can access quiz
+- [ ] Test scenario: Customer can download workbook
+- [ ] Test scenario: After 45 days, access denied
+- [ ] Test scenario: Admin can view roster and export
+- [ ] Test edge case: Customer buys same class twice (unique constraint prevents duplicate)
+- [ ] Test edge case: Product not mapped to instance (webhook logs error)
+- [ ] Test edge case: Existing user email purchases again (reuse user, create new enrollment)
 
 ### Exit Criteria
-- [ ] Student can book class and directly access relevant prep resources and quiz links
+- [ ] Full end-to-end flow works: purchase → account creation → quiz access → expiry
+- [ ] Quiz and workbook protected by entitlements
+- [ ] Admin can manage classes, instances, and view enrollments
+- [ ] All edge cases handled with proper error logging
 
 ---
 
 ## Phase 6 — Landing Page Video + UX Polish (1–2 days)
 
 ### Deliverables
-- [ ] Background video block (autoplay, loop, muted)
-- [ ] Readability-safe overlay treatment
+- [x] Background video block (autoplay, loop, muted)
+- [x] Readability-safe overlay treatment
 
 ### Execution Tasks
-- [ ] Implement responsive video background section
-- [ ] Add contrast layer for text legibility
+- [x] Implement responsive video background section
+- [x] Add contrast layer for text legibility
 - [ ] Validate mobile behavior and fallback behavior
 
 ### Exit Criteria
@@ -174,11 +271,12 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 ## Phase 7 — QA, Security, and Launch Readiness (4–6 days)
 
 ### Deliverables
-- [ ] Test scripts + UAT checklist
+- [x] Test scripts + UAT checklist
 - [ ] Security hardening completed
-- [ ] Production launch checklist finalized
+- [x] Production launch checklist finalized
 
 ### Execution Tasks
+- [x] Add admin Launch Readiness tracker page with persisted QA/Security/Operations checklist
 - [ ] Functional QA: Study mode retry behavior
 - [ ] Functional QA: Practice scoring and review correctness
 - [ ] Access QA: unauthorized users blocked
@@ -218,3 +316,9 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Phase 3 runtime upgraded with session resume index and full missed-question review annotation (X + correct emphasis)
 - [x] Admin Question Bank pagination added to reduce heavy single-page rendering on large sets
 - [x] Importer now auto-reindexes `display_order` collisions across sheets on first import when prompts differ (upsert still required for true re-import updates)
+- [x] Phase 3 runtime: fixed quiz numbering to show mode-based limits (35 test, 100 practice) not full question bank; added per-question identifiers for error reporting; optimized query performance (N+1 → batch query)
+- [x] **ARCHITECTURAL DECISION**: Booking system built entirely within TechiQuiz plugin (not as adapter abstraction). WooCommerce used for payment/checkout only. All booking logic (calendar, capacity, entitlements, access control) owned by plugin. Custom tables: `tq_classes`, `tq_class_instances`, `tq_enrollments`, `tq_entitlements`.
+- [x] **ACCESS MODEL DECISION**: Entitlements table is source-of-truth for access. Access granted by creation of entitlement records on successful WooCommerce order completion (webhook). No background jobs or complex rules engine. Simple date-range check (access_start <= today <= access_end) on each resource request.
+- [x] **SCOPE REDUCTION APPROVED**: MVP excludes waitlist, refunds, and instructor dashboard. Core flow only: purchase → account creation → entitlements → quiz/workbook access → 45-day expiry.
+- [x] Phase 5e support tooling added: Integration QA admin page with live snapshot metrics, quick links, and saved scenario progress markers (`tq_integration_checks`).
+- [x] Phase 7 support tooling added: Launch Readiness admin page with persisted QA/security/performance/operations checklist, launch date field, and blocker notes (`tq_launch_readiness`).

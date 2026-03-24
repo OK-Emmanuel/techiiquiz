@@ -12,7 +12,15 @@ class TQ_Quiz_Service {
     }
 
     public function get_question_limit_for_mode( $mode ) {
-        return 'practice' === sanitize_key( $mode ) ? 100 : 35;
+        $mode = sanitize_key( $mode );
+
+        if ( 'practice' === $mode ) {
+            $limit = (int) get_option( 'tq_practice_limit', 35 );
+            return $limit > 0 ? $limit : 35;
+        }
+
+        $limit = (int) get_option( 'tq_study_limit', 100 );
+        return $limit > 0 ? $limit : 100;
     }
 
     public function get_set_payload( $set_id ) {

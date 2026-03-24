@@ -24,6 +24,15 @@ class TQ_Admin_Menu {
         add_action( 'admin_post_tq_delete_question', array( $this, 'delete_question' ) );
         add_action( 'admin_post_tq_run_import', array( $this, 'run_import' ) );
         add_action( 'admin_post_tq_generate_quiz_page', array( $this, 'generate_quiz_page' ) );
+        add_action( 'admin_post_tq_save_booking_class', array( $this, 'save_booking_class' ) );
+        add_action( 'admin_post_tq_delete_booking_class', array( $this, 'delete_booking_class' ) );
+        add_action( 'admin_post_tq_save_class_instance', array( $this, 'save_class_instance' ) );
+        add_action( 'admin_post_tq_delete_class_instance', array( $this, 'delete_class_instance' ) );
+        add_action( 'admin_post_tq_simulate_provisioning', array( $this, 'simulate_provisioning' ) );
+        add_action( 'admin_post_tq_export_enrollment_report', array( $this, 'export_enrollment_report' ) );
+        add_action( 'admin_post_tq_save_settings', array( $this, 'save_settings' ) );
+        add_action( 'admin_post_tq_save_integration_checks', array( $this, 'save_integration_checks' ) );
+        add_action( 'admin_post_tq_save_launch_readiness', array( $this, 'save_launch_readiness' ) );
     }
 
     public function add_menu() {
@@ -71,6 +80,69 @@ class TQ_Admin_Menu {
             'manage_options',
             'tq-importer',
             array( $this, 'render_importer_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Booking Classes',
+            'Booking Classes',
+            'manage_options',
+            'tq-booking-classes',
+            array( $this, 'render_booking_classes_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Class Instances',
+            'Class Instances',
+            'manage_options',
+            'tq-class-instances',
+            array( $this, 'render_class_instances_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Provisioning Logs',
+            'Provisioning Logs',
+            'manage_options',
+            'tq-provisioning-logs',
+            array( $this, 'render_provisioning_logs_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Enrollment Reports',
+            'Enrollment Reports',
+            'manage_options',
+            'tq-enrollment-reports',
+            array( $this, 'render_enrollment_reports_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Settings',
+            'Settings',
+            'manage_options',
+            'tq-settings',
+            array( $this, 'render_settings_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Integration QA',
+            'Integration QA',
+            'manage_options',
+            'tq-integration-qa',
+            array( $this, 'render_integration_qa_page' )
+        );
+
+        add_submenu_page(
+            'tq-courses',
+            'Launch Readiness',
+            'Launch Readiness',
+            'manage_options',
+            'tq-launch-readiness',
+            array( $this, 'render_launch_readiness_page' )
         );
     }
 
@@ -756,6 +828,809 @@ class TQ_Admin_Menu {
         }
     }
 
+    public function render_booking_classes_page() {
+        $this->assert_admin();
+
+        $classes = $this->db->get_booking_classes();
+        $edit_id = isset( $_GET['edit'] ) ? absint( wp_unslash( $_GET['edit'] ) ) : 0;
+        $editing = $edit_id > 0 ? $this->db->get_booking_class( $edit_id ) : null;
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">Booking Classes</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:900px;">';
+        echo '<h2>' . ( $editing ? 'Edit Class' : 'Add New Class' ) . '</h2>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'tq_save_booking_class' );
+        echo '<input type="hidden" name="action" value="tq_save_booking_class" />';
+        echo '<input type="hidden" name="class_id" value="' . esc_attr( $editing['id'] ?? 0 ) . '" />';
+        echo '<p><label>Name</label><br /><input class="regular-text" name="name" required value="' . esc_attr( $editing['name'] ?? '' ) . '" /></p>';
+        echo '<p><label>Course Code</label><br /><input class="regular-text" name="course_code" required value="' . esc_attr( $editing['course_code'] ?? '' ) . '" /></p>';
+        echo '<p><label>Workbook URL</label><br /><input class="regular-text" type="url" name="workbook_url" value="' . esc_attr( $editing['workbook_url'] ?? '' ) . '" /></p>';
+        echo '<p><label>Description</label><br /><textarea class="large-text" rows="4" name="description">' . esc_textarea( $editing['description'] ?? '' ) . '</textarea></p>';
+        submit_button( $editing ? 'Update Class' : 'Create Class', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1080px; margin-top:16px;">';
+        echo '<h2>Existing Booking Classes</h2>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>ID</th><th>Name</th><th>Code</th><th>Workbook</th><th>Instances</th><th>Actions</th></tr></thead><tbody>';
+        if ( empty( $classes ) ) {
+            echo '<tr><td colspan="6">No booking classes yet.</td></tr>';
+        } else {
+            foreach ( $classes as $class ) {
+                $edit_link = add_query_arg(
+                    array(
+                        'page' => 'tq-booking-classes',
+                        'edit' => (int) $class['id'],
+                    ),
+                    admin_url( 'admin.php' )
+                );
+                echo '<tr>';
+                echo '<td>' . esc_html( $class['id'] ) . '</td>';
+                echo '<td>' . esc_html( $class['name'] ) . '</td>';
+                echo '<td>' . esc_html( $class['course_code'] ) . '</td>';
+                echo '<td>' . ( ! empty( $class['workbook_url'] ) ? '<a href="' . esc_url( $class['workbook_url'] ) . '" target="_blank">Open</a>' : 'N/A' ) . '</td>';
+                echo '<td>' . esc_html( $class['instance_count'] ) . '</td>';
+                echo '<td class="tq-actions">';
+                echo '<a class="button button-small tq-icon-btn" href="' . esc_url( $edit_link ) . '" title="Edit class"><span class="dashicons dashicons-edit"></span></a>';
+                echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;vertical-align:middle;">';
+                wp_nonce_field( 'tq_delete_booking_class_' . (int) $class['id'] );
+                echo '<input type="hidden" name="action" value="tq_delete_booking_class" />';
+                echo '<input type="hidden" name="class_id" value="' . esc_attr( $class['id'] ) . '" />';
+                echo '<button class="button button-small tq-icon-btn tq-icon-danger" onclick="return confirm(\'Delete this booking class?\')"><span class="dashicons dashicons-trash"></span></button>';
+                echo '</form>';
+                echo '</td>';
+                echo '</tr>';
+            }
+        }
+        echo '</tbody></table>';
+        echo '</div>';
+        echo '</div>';
+    }
+
+    public function render_class_instances_page() {
+        $this->assert_admin();
+
+        $classes   = $this->db->get_booking_classes();
+        $instances = $this->db->get_class_instances();
+        $edit_id   = isset( $_GET['edit'] ) ? absint( wp_unslash( $_GET['edit'] ) ) : 0;
+        $editing   = $edit_id > 0 ? $this->db->get_class_instance( $edit_id ) : null;
+        $products  = function_exists( 'wc_get_products' )
+            ? wc_get_products(
+                array(
+                    'status' => 'publish',
+                    'limit'  => 200,
+                    'return' => 'ids',
+                )
+            )
+            : array();
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">Class Instances</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:960px;">';
+        echo '<h2>' . ( $editing ? 'Edit Instance' : 'Add New Instance' ) . '</h2>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'tq_save_class_instance' );
+        echo '<input type="hidden" name="action" value="tq_save_class_instance" />';
+        echo '<input type="hidden" name="instance_id" value="' . esc_attr( $editing['id'] ?? 0 ) . '" />';
+
+        echo '<p><label>Class</label><br /><select name="class_id" required>';
+        echo '<option value="">Select class</option>';
+        foreach ( $classes as $class ) {
+            echo '<option value="' . esc_attr( $class['id'] ) . '" ' . selected( (int) ( $editing['class_id'] ?? 0 ), (int) $class['id'], false ) . '>' . esc_html( $class['name'] . ' (' . $class['course_code'] . ')' ) . '</option>';
+        }
+        echo '</select></p>';
+
+        echo '<p><label>WooCommerce Product</label><br /><select name="woocommerce_product_id" required>';
+        echo '<option value="">Select product</option>';
+        foreach ( $products as $product_id ) {
+            $product = wc_get_product( $product_id );
+            if ( ! $product ) {
+                continue;
+            }
+            echo '<option value="' . esc_attr( $product_id ) . '" ' . selected( (int) ( $editing['woocommerce_product_id'] ?? 0 ), (int) $product_id, false ) . '>' . esc_html( '#' . $product_id . ' - ' . $product->get_name() ) . '</option>';
+        }
+        echo '</select></p>';
+
+        echo '<p><label>Start Date</label><br /><input type="date" name="start_date" required value="' . esc_attr( $editing['start_date'] ?? '' ) . '" /></p>';
+        echo '<p><label>End Date</label><br /><input type="date" name="end_date" required value="' . esc_attr( $editing['end_date'] ?? '' ) . '" /></p>';
+        echo '<p><label>Max Capacity</label><br /><input type="number" min="1" name="max_capacity" required value="' . esc_attr( $editing['max_capacity'] ?? 12 ) . '" /></p>';
+
+        submit_button( $editing ? 'Update Instance' : 'Create Instance', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1200px; margin-top:16px;">';
+        echo '<h2>Existing Class Instances</h2>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>ID</th><th>Class</th><th>Product</th><th>Start</th><th>End</th><th>Access End (+45d)</th><th>Capacity</th><th>Enrollments</th><th>Actions</th></tr></thead><tbody>';
+        if ( empty( $instances ) ) {
+            echo '<tr><td colspan="9">No class instances yet.</td></tr>';
+        } else {
+            foreach ( $instances as $instance ) {
+                $edit_link    = add_query_arg(
+                    array(
+                        'page' => 'tq-class-instances',
+                        'edit' => (int) $instance['id'],
+                    ),
+                    admin_url( 'admin.php' )
+                );
+                $access_end   = gmdate( 'Y-m-d', strtotime( (string) $instance['end_date'] . ' +45 days' ) );
+                $enroll_count = $this->db->count_enrollments_for_instance( (int) $instance['id'] );
+
+                echo '<tr>';
+                echo '<td>' . esc_html( $instance['id'] ) . '</td>';
+                echo '<td>' . esc_html( $instance['class_name'] ?: 'N/A' ) . '</td>';
+                echo '<td>#' . esc_html( $instance['woocommerce_product_id'] ) . '</td>';
+                echo '<td>' . esc_html( $instance['start_date'] ) . '</td>';
+                echo '<td>' . esc_html( $instance['end_date'] ) . '</td>';
+                echo '<td>' . esc_html( $access_end ) . '</td>';
+                echo '<td>' . esc_html( $instance['max_capacity'] ) . '</td>';
+                echo '<td>' . esc_html( $enroll_count ) . '</td>';
+                echo '<td class="tq-actions">';
+                echo '<a class="button button-small tq-icon-btn" href="' . esc_url( $edit_link ) . '" title="Edit instance"><span class="dashicons dashicons-edit"></span></a>';
+                echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;vertical-align:middle;">';
+                wp_nonce_field( 'tq_delete_class_instance_' . (int) $instance['id'] );
+                echo '<input type="hidden" name="action" value="tq_delete_class_instance" />';
+                echo '<input type="hidden" name="instance_id" value="' . esc_attr( $instance['id'] ) . '" />';
+                echo '<button class="button button-small tq-icon-btn tq-icon-danger" onclick="return confirm(\'Delete this instance? This may impact enrolled students.\')"><span class="dashicons dashicons-trash"></span></button>';
+                echo '</form>';
+                echo '</td>';
+                echo '</tr>';
+            }
+        }
+        echo '</tbody></table>';
+        echo '</div>';
+        echo '</div>';
+    }
+
+    public function render_provisioning_logs_page() {
+        $this->assert_admin();
+
+        $logs = $this->db->get_provisioning_logs( 100 );
+        $simulation_report = get_transient( 'tq_provisioning_simulation_' . get_current_user_id() );
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">Provisioning Logs</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:800px; margin-bottom:16px;">';
+        echo '<h2>Simulate Provisioning by Order ID</h2>';
+        echo '<p>Use this to test provisioning logic for an existing WooCommerce order without waiting for a new checkout.</p>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'tq_simulate_provisioning' );
+        echo '<input type="hidden" name="action" value="tq_simulate_provisioning" />';
+        echo '<p><label>WooCommerce Order ID</label><br /><input type="number" min="1" name="order_id" required class="small-text" /></p>';
+        submit_button( 'Run Provisioning Simulation', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+
+        if ( is_array( $simulation_report ) ) {
+            echo '<div class="tq-card" style="max-width:1000px; margin-bottom:16px;">';
+            echo '<h2>Last Simulation Result</h2>';
+            echo '<p><strong>Order ID:</strong> ' . esc_html( $simulation_report['order_id'] ?? '' ) . '</p>';
+            if ( ! empty( $simulation_report['error'] ) ) {
+                echo '<p style="color:#991b1b;"><strong>Error:</strong> ' . esc_html( $simulation_report['error'] ) . '</p>';
+            } else {
+                echo '<p><strong>User ID:</strong> ' . esc_html( $simulation_report['user_id'] ?? '' ) . '</p>';
+                echo '<p><strong>Provisioned Instances:</strong> ' . esc_html( $simulation_report['provisioned_instances'] ?? 0 ) . '</p>';
+            }
+            echo '</div>';
+            delete_transient( 'tq_provisioning_simulation_' . get_current_user_id() );
+        }
+
+        echo '<div class="tq-card" style="max-width:1200px;">';
+        echo '<h2>Latest Provisioning Events</h2>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>Date</th><th>Order</th><th>User</th><th>Instance</th><th>Action</th><th>Status</th><th>Message</th></tr></thead><tbody>';
+
+        if ( empty( $logs ) ) {
+            echo '<tr><td colspan="7">No provisioning logs yet.</td></tr>';
+        } else {
+            foreach ( $logs as $log ) {
+                echo '<tr>';
+                echo '<td>' . esc_html( $log['created_at'] ) . '</td>';
+                echo '<td>#' . esc_html( $log['woocommerce_order_id'] ) . '</td>';
+                echo '<td>' . ( ! empty( $log['user_id'] ) ? esc_html( $log['user_id'] ) : 'N/A' ) . '</td>';
+                echo '<td>' . ( ! empty( $log['class_instance_id'] ) ? esc_html( $log['class_instance_id'] ) : 'N/A' ) . '</td>';
+                echo '<td>' . esc_html( $log['action'] ) . '</td>';
+                echo '<td>' . esc_html( ucfirst( $log['status'] ) ) . '</td>';
+                echo '<td>' . esc_html( $log['message'] ) . '</td>';
+                echo '</tr>';
+            }
+        }
+
+        echo '</tbody></table>';
+        echo '</div>';
+        echo '</div>';
+    }
+
+    public function render_enrollment_reports_page() {
+        $this->assert_admin();
+
+        $selected_instance_id = isset( $_GET['class_instance_id'] ) ? absint( wp_unslash( $_GET['class_instance_id'] ) ) : 0;
+        $instances            = $this->db->get_class_instances();
+        $rows                 = $this->db->get_enrollment_report_rows( $selected_instance_id );
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">Enrollment Reports</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:1100px; margin-bottom:16px;">';
+        echo '<h2>Filter</h2>';
+        echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
+        echo '<input type="hidden" name="page" value="tq-enrollment-reports" />';
+        echo '<p><label>Class Instance</label><br /><select name="class_instance_id">';
+        echo '<option value="0">All instances</option>';
+        foreach ( $instances as $instance ) {
+            $label = '#' . (int) $instance['id'] . ' - ' . ( $instance['class_name'] ?: 'N/A' ) . ' (' . $instance['start_date'] . ' to ' . $instance['end_date'] . ')';
+            echo '<option value="' . esc_attr( $instance['id'] ) . '" ' . selected( $selected_instance_id, (int) $instance['id'], false ) . '>' . esc_html( $label ) . '</option>';
+        }
+        echo '</select></p>';
+        submit_button( 'Apply Filter', 'secondary', '', false );
+        echo '</form>';
+
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:12px;">';
+        wp_nonce_field( 'tq_export_enrollment_report' );
+        echo '<input type="hidden" name="action" value="tq_export_enrollment_report" />';
+        echo '<input type="hidden" name="class_instance_id" value="' . esc_attr( $selected_instance_id ) . '" />';
+        submit_button( 'Export CSV', 'primary tq-btn-primary', '', false );
+        echo '</form>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1200px;">';
+        echo '<h2>Roster</h2>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>User</th><th>Email</th><th>Class</th><th>Instance Dates</th><th>Enrollment Date</th><th>Access End</th><th>Status</th></tr></thead><tbody>';
+        if ( empty( $rows ) ) {
+            echo '<tr><td colspan="7">No enrollments found for selected filter.</td></tr>';
+        } else {
+            $today = current_time( 'Y-m-d' );
+            foreach ( $rows as $row ) {
+                $access_end    = ! empty( $row['access_end'] ) ? (string) $row['access_end'] : '';
+                $access_start  = ! empty( $row['access_start'] ) ? (string) $row['access_start'] : '';
+                $access_status = 'inactive';
+                if ( '' !== $access_end ) {
+                    if ( $today < $access_start ) {
+                        $access_status = 'not_yet_available';
+                    } elseif ( $today > $access_end ) {
+                        $access_status = 'expired';
+                    } else {
+                        $access_status = 'active';
+                    }
+                }
+
+                echo '<tr>';
+                echo '<td>' . esc_html( $row['display_name'] ?: 'User #' . (int) $row['user_id'] ) . '</td>';
+                echo '<td>' . esc_html( $row['user_email'] ?: 'N/A' ) . '</td>';
+                echo '<td>' . esc_html( $row['class_name'] . ' (' . $row['course_code'] . ')' ) . '</td>';
+                echo '<td>' . esc_html( $row['start_date'] . ' to ' . $row['end_date'] ) . '</td>';
+                echo '<td>' . esc_html( $row['enrollment_date'] ) . '</td>';
+                echo '<td>' . esc_html( $access_end ?: 'N/A' ) . '</td>';
+                echo '<td>' . esc_html( $access_status ) . '</td>';
+                echo '</tr>';
+            }
+        }
+        echo '</tbody></table>';
+        echo '</div>';
+        echo '</div>';
+    }
+
+    public function render_settings_page() {
+        $this->assert_admin();
+
+        $study_limit    = (int) get_option( 'tq_study_limit', 100 );
+        $practice_limit = (int) get_option( 'tq_practice_limit', 35 );
+
+        if ( $study_limit <= 0 ) {
+            $study_limit = 100;
+        }
+
+        if ( $practice_limit <= 0 ) {
+            $practice_limit = 35;
+        }
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">TechiQuiz Settings</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:700px;">';
+        echo '<h2>Question Limits</h2>';
+        echo '<p>Configure how many questions are loaded per session mode.</p>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'tq_save_settings' );
+        echo '<input type="hidden" name="action" value="tq_save_settings" />';
+        echo '<p><label for="tq-study-limit">Study mode question limit</label><br />';
+        echo '<input id="tq-study-limit" type="number" min="1" max="500" step="1" class="small-text" name="study_limit" value="' . esc_attr( $study_limit ) . '" /></p>';
+        echo '<p><label for="tq-practice-limit">Practice mode question limit</label><br />';
+        echo '<input id="tq-practice-limit" type="number" min="1" max="500" step="1" class="small-text" name="practice_limit" value="' . esc_attr( $practice_limit ) . '" /></p>';
+        submit_button( 'Save Settings', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+        echo '</div>';
+    }
+
+    public function render_integration_qa_page() {
+        $this->assert_admin();
+
+        $instances = $this->db->get_class_instances();
+        $logs      = $this->db->get_provisioning_logs( 200 );
+        $rows      = $this->db->get_enrollment_report_rows();
+
+        $mapped_instances       = 0;
+        $unmapped_instances     = 0;
+        $error_logs             = 0;
+        $success_logs           = 0;
+        $active_access          = 0;
+        $expired_access         = 0;
+        $future_access          = 0;
+        $today                  = current_time( 'Y-m-d' );
+        $active_enrollment_rows = 0;
+
+        foreach ( $instances as $instance ) {
+            if ( ! empty( $instance['woocommerce_product_id'] ) ) {
+                $mapped_instances++;
+            } else {
+                $unmapped_instances++;
+            }
+        }
+
+        foreach ( $logs as $log ) {
+            if ( 'error' === ( $log['status'] ?? '' ) ) {
+                $error_logs++;
+            }
+            if ( 'success' === ( $log['status'] ?? '' ) ) {
+                $success_logs++;
+            }
+        }
+
+        foreach ( $rows as $row ) {
+            if ( 'active' === ( $row['enrollment_status'] ?? '' ) ) {
+                $active_enrollment_rows++;
+            }
+
+            $access_start = ! empty( $row['access_start'] ) ? (string) $row['access_start'] : '';
+            $access_end   = ! empty( $row['access_end'] ) ? (string) $row['access_end'] : '';
+
+            if ( '' === $access_start || '' === $access_end ) {
+                continue;
+            }
+
+            if ( $today < $access_start ) {
+                $future_access++;
+            } elseif ( $today > $access_end ) {
+                $expired_access++;
+            } else {
+                $active_access++;
+            }
+        }
+
+        $check_keys = array(
+            'admin_flow',
+            'customer_purchase',
+            'webhook_entitlements',
+            'quiz_access',
+            'workbook_access',
+            'expiry_enforced',
+            'roster_export',
+            'duplicate_purchase_blocked',
+            'unmapped_product_error_logged',
+            'existing_user_reused',
+        );
+
+        $saved_checks = get_option( 'tq_integration_checks', array() );
+        if ( ! is_array( $saved_checks ) ) {
+            $saved_checks = array();
+        }
+
+        $check_labels = array(
+            'admin_flow'                   => 'Admin creates class, instance, and maps product',
+            'customer_purchase'            => 'Customer purchase completed in WooCommerce',
+            'webhook_entitlements'         => 'Webhook created user/enrollment/entitlements',
+            'quiz_access'                  => 'Customer can access quiz with entitlement',
+            'workbook_access'              => 'Customer can download workbook',
+            'expiry_enforced'              => 'Access denied after expiry window',
+            'roster_export'                => 'Roster visible and CSV export works',
+            'duplicate_purchase_blocked'   => 'Duplicate purchase does not duplicate enrollment',
+            'unmapped_product_error_logged'=> 'Unmapped product logs provisioning error',
+            'existing_user_reused'         => 'Existing user is reused on repurchase',
+        );
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">Integration QA (Phase 5e)</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:1200px; margin-bottom:16px;">';
+        echo '<h2>Live Snapshot</h2>';
+        echo '<table class="widefat striped tq-modern-table"><tbody>';
+        echo '<tr><th>Total Class Instances</th><td>' . esc_html( count( $instances ) ) . '</td><th>Mapped Instances</th><td>' . esc_html( $mapped_instances ) . '</td></tr>';
+        echo '<tr><th>Unmapped Instances</th><td>' . esc_html( $unmapped_instances ) . '</td><th>Total Enrollments</th><td>' . esc_html( count( $rows ) ) . '</td></tr>';
+        echo '<tr><th>Active Enrollments</th><td>' . esc_html( $active_enrollment_rows ) . '</td><th>Provisioning Success Logs</th><td>' . esc_html( $success_logs ) . '</td></tr>';
+        echo '<tr><th>Provisioning Error Logs</th><td>' . esc_html( $error_logs ) . '</td><th>Active Access Windows</th><td>' . esc_html( $active_access ) . '</td></tr>';
+        echo '<tr><th>Future Access Windows</th><td>' . esc_html( $future_access ) . '</td><th>Expired Access Windows</th><td>' . esc_html( $expired_access ) . '</td></tr>';
+        echo '</tbody></table>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1200px; margin-bottom:16px;">';
+        echo '<h2>Phase 5e Checklist Runner</h2>';
+        echo '<p>Use this to track completion of the integration scenarios while testing.</p>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'tq_save_integration_checks' );
+        echo '<input type="hidden" name="action" value="tq_save_integration_checks" />';
+        echo '<table class="widefat striped tq-modern-table"><tbody>';
+        foreach ( $check_keys as $key ) {
+            $checked = ! empty( $saved_checks[ $key ] );
+            echo '<tr>';
+            echo '<td style="width:32px;"><input type="checkbox" name="checks[]" value="' . esc_attr( $key ) . '" ' . checked( $checked, true, false ) . ' /></td>';
+            echo '<td>' . esc_html( $check_labels[ $key ] ) . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+        submit_button( 'Save QA Progress', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1200px;">';
+        echo '<h2>Quick Links</h2>';
+        echo '<ul style="list-style:disc; padding-left:18px;">';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-booking-classes' ) ) . '">Booking Classes</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-class-instances' ) ) . '">Class Instances</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-provisioning-logs' ) ) . '">Provisioning Logs</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-enrollment-reports' ) ) . '">Enrollment Reports</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-settings' ) ) . '">TechiQuiz Settings</a></li>';
+        echo '</ul>';
+        echo '</div>';
+
+        echo '</div>';
+    }
+
+    public function save_booking_class() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_save_booking_class' );
+
+        $class_id = isset( $_POST['class_id'] ) ? absint( wp_unslash( $_POST['class_id'] ) ) : 0;
+        $data     = array(
+            'name'         => isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '',
+            'course_code'  => isset( $_POST['course_code'] ) ? sanitize_text_field( wp_unslash( $_POST['course_code'] ) ) : '',
+            'workbook_url' => isset( $_POST['workbook_url'] ) ? esc_url_raw( wp_unslash( $_POST['workbook_url'] ) ) : '',
+            'description'  => isset( $_POST['description'] ) ? wp_kses_post( wp_unslash( $_POST['description'] ) ) : '',
+        );
+
+        if ( $class_id > 0 ) {
+            $this->db->update_booking_class( $class_id, $data );
+            $this->redirect_with_notice( 'tq-booking-classes', 'booking_class_updated' );
+        }
+
+        $this->db->create_booking_class( $data );
+        $this->redirect_with_notice( 'tq-booking-classes', 'booking_class_created' );
+    }
+
+    public function delete_booking_class() {
+        $this->assert_admin();
+
+        $class_id = isset( $_POST['class_id'] ) ? absint( wp_unslash( $_POST['class_id'] ) ) : 0;
+        check_admin_referer( 'tq_delete_booking_class_' . $class_id );
+
+        if ( $class_id > 0 ) {
+            $this->db->delete_booking_class( $class_id );
+        }
+
+        $this->redirect_with_notice( 'tq-booking-classes', 'booking_class_deleted' );
+    }
+
+    public function save_class_instance() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_save_class_instance' );
+
+        $instance_id = isset( $_POST['instance_id'] ) ? absint( wp_unslash( $_POST['instance_id'] ) ) : 0;
+        $data        = array(
+            'class_id'               => isset( $_POST['class_id'] ) ? absint( wp_unslash( $_POST['class_id'] ) ) : 0,
+            'woocommerce_product_id' => isset( $_POST['woocommerce_product_id'] ) ? absint( wp_unslash( $_POST['woocommerce_product_id'] ) ) : 0,
+            'start_date'             => isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '',
+            'end_date'               => isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '',
+            'max_capacity'           => isset( $_POST['max_capacity'] ) ? absint( wp_unslash( $_POST['max_capacity'] ) ) : 12,
+            'current_enrollment'     => 0,
+        );
+
+        if ( $instance_id > 0 ) {
+            $existing = $this->db->get_class_instance( $instance_id );
+            if ( $existing ) {
+                $data['current_enrollment'] = (int) $existing['current_enrollment'];
+            }
+            $this->db->update_class_instance( $instance_id, $data );
+            $this->redirect_with_notice( 'tq-class-instances', 'class_instance_updated' );
+        }
+
+        $this->db->create_class_instance( $data );
+        $this->redirect_with_notice( 'tq-class-instances', 'class_instance_created' );
+    }
+
+    public function delete_class_instance() {
+        $this->assert_admin();
+
+        $instance_id = isset( $_POST['instance_id'] ) ? absint( wp_unslash( $_POST['instance_id'] ) ) : 0;
+        check_admin_referer( 'tq_delete_class_instance_' . $instance_id );
+
+        if ( $instance_id > 0 ) {
+            $this->db->delete_class_instance( $instance_id );
+        }
+
+        $this->redirect_with_notice( 'tq-class-instances', 'class_instance_deleted' );
+    }
+
+    public function simulate_provisioning() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_simulate_provisioning' );
+
+        $order_id = isset( $_POST['order_id'] ) ? absint( wp_unslash( $_POST['order_id'] ) ) : 0;
+        if ( $order_id <= 0 ) {
+            $this->redirect_with_notice( 'tq-provisioning-logs', 'provisioning_simulation_invalid_order' );
+        }
+
+        $booking_service = new TQ_Booking_Service( $this->db );
+        $result          = $booking_service->provision_from_order( $order_id );
+
+        if ( is_wp_error( $result ) ) {
+            set_transient(
+                'tq_provisioning_simulation_' . get_current_user_id(),
+                array(
+                    'order_id' => $order_id,
+                    'error'    => $result->get_error_message(),
+                ),
+                10 * MINUTE_IN_SECONDS
+            );
+            $this->redirect_with_notice( 'tq-provisioning-logs', 'provisioning_simulation_error' );
+        }
+
+        set_transient(
+            'tq_provisioning_simulation_' . get_current_user_id(),
+            array(
+                'order_id'              => (int) ( $result['order_id'] ?? $order_id ),
+                'user_id'               => (int) ( $result['user_id'] ?? 0 ),
+                'provisioned_instances' => (int) ( $result['provisioned_instances'] ?? 0 ),
+            ),
+            10 * MINUTE_IN_SECONDS
+        );
+
+        $this->redirect_with_notice( 'tq-provisioning-logs', 'provisioning_simulation_success' );
+    }
+
+    public function export_enrollment_report() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_export_enrollment_report' );
+
+        $selected_instance_id = isset( $_POST['class_instance_id'] ) ? absint( wp_unslash( $_POST['class_instance_id'] ) ) : 0;
+        $rows                 = $this->db->get_enrollment_report_rows( $selected_instance_id );
+
+        $filename = 'tq-enrollment-report-' . gmdate( 'Ymd-His' ) . '.csv';
+        nocache_headers();
+        header( 'Content-Type: text/csv; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename=' . $filename );
+
+        $output = fopen( 'php://output', 'w' );
+        if ( false === $output ) {
+            exit;
+        }
+
+        fputcsv( $output, array( 'user_email', 'user_name', 'class_name', 'course_code', 'class_instance_id', 'start_date', 'end_date', 'access_start', 'access_end', 'enrollment_date', 'status' ) );
+
+        $today = current_time( 'Y-m-d' );
+        foreach ( $rows as $row ) {
+            $access_end    = ! empty( $row['access_end'] ) ? (string) $row['access_end'] : '';
+            $access_start  = ! empty( $row['access_start'] ) ? (string) $row['access_start'] : '';
+            $access_status = 'inactive';
+            if ( '' !== $access_end ) {
+                if ( $today < $access_start ) {
+                    $access_status = 'not_yet_available';
+                } elseif ( $today > $access_end ) {
+                    $access_status = 'expired';
+                } else {
+                    $access_status = 'active';
+                }
+            }
+
+            fputcsv(
+                $output,
+                array(
+                    (string) ( $row['user_email'] ?? '' ),
+                    (string) ( $row['display_name'] ?? '' ),
+                    (string) ( $row['class_name'] ?? '' ),
+                    (string) ( $row['course_code'] ?? '' ),
+                    (string) ( $row['class_instance_id'] ?? '' ),
+                    (string) ( $row['start_date'] ?? '' ),
+                    (string) ( $row['end_date'] ?? '' ),
+                    (string) ( $row['access_start'] ?? '' ),
+                    (string) ( $row['access_end'] ?? '' ),
+                    (string) ( $row['enrollment_date'] ?? '' ),
+                    (string) $access_status,
+                )
+            );
+        }
+
+        fclose( $output );
+        exit;
+    }
+
+    public function save_settings() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_save_settings' );
+
+        $study_limit    = isset( $_POST['study_limit'] ) ? absint( wp_unslash( $_POST['study_limit'] ) ) : 100;
+        $practice_limit = isset( $_POST['practice_limit'] ) ? absint( wp_unslash( $_POST['practice_limit'] ) ) : 35;
+
+        if ( $study_limit <= 0 ) {
+            $study_limit = 100;
+        }
+
+        if ( $practice_limit <= 0 ) {
+            $practice_limit = 35;
+        }
+
+        update_option( 'tq_study_limit', $study_limit );
+        update_option( 'tq_practice_limit', $practice_limit );
+
+        $this->redirect_with_notice( 'tq-settings', 'settings_saved' );
+    }
+
+    public function save_integration_checks() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_save_integration_checks' );
+
+        $allowed = array(
+            'admin_flow',
+            'customer_purchase',
+            'webhook_entitlements',
+            'quiz_access',
+            'workbook_access',
+            'expiry_enforced',
+            'roster_export',
+            'duplicate_purchase_blocked',
+            'unmapped_product_error_logged',
+            'existing_user_reused',
+        );
+
+        $selected = isset( $_POST['checks'] ) ? (array) wp_unslash( $_POST['checks'] ) : array();
+        $selected = array_map( 'sanitize_key', $selected );
+        $selected = array_values( array_intersect( $selected, $allowed ) );
+
+        $payload = array();
+        foreach ( $allowed as $key ) {
+            $payload[ $key ] = in_array( $key, $selected, true ) ? 1 : 0;
+        }
+
+        update_option( 'tq_integration_checks', $payload );
+        $this->redirect_with_notice( 'tq-integration-qa', 'integration_checks_saved' );
+    }
+
+    public function render_launch_readiness_page() {
+        $this->assert_admin();
+
+        $keys = array(
+            'func_study_retry',
+            'func_practice_scoring',
+            'access_unauthorized_blocked',
+            'access_entitled_allowed',
+            'sec_nonce_capability',
+            'sec_sanitize_escape',
+            'sec_rate_limit_reviewed',
+            'perf_question_load',
+            'perf_db_indexes',
+            'ops_backup_rollback',
+            'ops_monitoring_logging',
+            'uat_signoff',
+        );
+
+        $labels = array(
+            'func_study_retry'            => 'Functional QA: Study mode retry behavior',
+            'func_practice_scoring'       => 'Functional QA: Practice scoring and review correctness',
+            'access_unauthorized_blocked' => 'Access QA: unauthorized users blocked',
+            'access_entitled_allowed'     => 'Access QA: entitled users allowed',
+            'sec_nonce_capability'        => 'Security QA: nonce and capability enforcement',
+            'sec_sanitize_escape'         => 'Security QA: sanitize input and escape output',
+            'sec_rate_limit_reviewed'     => 'Security QA: endpoint rate limiting reviewed',
+            'perf_question_load'          => 'Performance QA: question load strategy and pagination',
+            'perf_db_indexes'             => 'Performance QA: database index review and tuning',
+            'ops_backup_rollback'         => 'Operations: backup and rollback plan prepared',
+            'ops_monitoring_logging'      => 'Operations: monitoring and logging checklist prepared',
+            'uat_signoff'                 => 'UAT signoff completed',
+        );
+
+        $state = get_option( 'tq_launch_readiness', array() );
+        if ( ! is_array( $state ) ) {
+            $state = array();
+        }
+
+        $notes             = isset( $state['notes'] ) ? (string) $state['notes'] : '';
+        $target_launch_date = isset( $state['target_launch_date'] ) ? (string) $state['target_launch_date'] : '';
+
+        $checked_total = 0;
+        foreach ( $keys as $key ) {
+            if ( ! empty( $state[ $key ] ) ) {
+                $checked_total++;
+            }
+        }
+
+        echo '<div class="wrap tq-admin">';
+        echo '<h1 class="tq-title">Launch Readiness (Phase 7)</h1>';
+        $this->render_notice();
+
+        echo '<div class="tq-card" style="max-width:1200px; margin-bottom:16px;">';
+        echo '<h2>Progress Snapshot</h2>';
+        echo '<p><strong>Completed items:</strong> ' . esc_html( $checked_total ) . ' / ' . esc_html( count( $keys ) ) . '</p>';
+        echo '<p><strong>Target launch date:</strong> ' . ( '' !== $target_launch_date ? esc_html( $target_launch_date ) : 'Not set' ) . '</p>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1200px; margin-bottom:16px;">';
+        echo '<h2>QA, Security, and Operations Checklist</h2>';
+        echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+        wp_nonce_field( 'tq_save_launch_readiness' );
+        echo '<input type="hidden" name="action" value="tq_save_launch_readiness" />';
+        echo '<table class="widefat striped tq-modern-table"><tbody>';
+        foreach ( $keys as $key ) {
+            $is_checked = ! empty( $state[ $key ] );
+            echo '<tr>';
+            echo '<td style="width:32px;"><input type="checkbox" name="checks[]" value="' . esc_attr( $key ) . '" ' . checked( $is_checked, true, false ) . ' /></td>';
+            echo '<td>' . esc_html( $labels[ $key ] ) . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+        echo '<p style="margin-top:12px;"><label for="tq-target-launch-date"><strong>Target launch date</strong></label><br />';
+        echo '<input id="tq-target-launch-date" type="date" name="target_launch_date" value="' . esc_attr( $target_launch_date ) . '" /></p>';
+        echo '<p><label for="tq-launch-notes"><strong>Notes / blockers</strong></label><br />';
+        echo '<textarea id="tq-launch-notes" name="notes" rows="6" class="large-text" placeholder="Record remaining blockers, risk decisions, and who signed off what.">' . esc_textarea( $notes ) . '</textarea></p>';
+        submit_button( 'Save Launch Readiness', 'primary tq-btn-primary' );
+        echo '</form>';
+        echo '</div>';
+
+        echo '<div class="tq-card" style="max-width:1200px;">';
+        echo '<h2>Useful Review Pages</h2>';
+        echo '<ul style="list-style:disc; padding-left:18px;">';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-integration-qa' ) ) . '">Integration QA</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-provisioning-logs' ) ) . '">Provisioning Logs</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-enrollment-reports' ) ) . '">Enrollment Reports</a></li>';
+        echo '<li><a href="' . esc_url( admin_url( 'admin.php?page=tq-settings' ) ) . '">Settings</a></li>';
+        echo '</ul>';
+        echo '</div>';
+
+        echo '</div>';
+    }
+
+    public function save_launch_readiness() {
+        $this->assert_admin();
+        check_admin_referer( 'tq_save_launch_readiness' );
+
+        $allowed = array(
+            'func_study_retry',
+            'func_practice_scoring',
+            'access_unauthorized_blocked',
+            'access_entitled_allowed',
+            'sec_nonce_capability',
+            'sec_sanitize_escape',
+            'sec_rate_limit_reviewed',
+            'perf_question_load',
+            'perf_db_indexes',
+            'ops_backup_rollback',
+            'ops_monitoring_logging',
+            'uat_signoff',
+        );
+
+        $selected = isset( $_POST['checks'] ) ? (array) wp_unslash( $_POST['checks'] ) : array();
+        $selected = array_map( 'sanitize_key', $selected );
+        $selected = array_values( array_intersect( $selected, $allowed ) );
+
+        $payload = array();
+        foreach ( $allowed as $key ) {
+            $payload[ $key ] = in_array( $key, $selected, true ) ? 1 : 0;
+        }
+
+        $payload['target_launch_date'] = isset( $_POST['target_launch_date'] ) ? sanitize_text_field( wp_unslash( $_POST['target_launch_date'] ) ) : '';
+        $payload['notes']              = isset( $_POST['notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['notes'] ) ) : '';
+
+        update_option( 'tq_launch_readiness', $payload );
+        $this->redirect_with_notice( 'tq-launch-readiness', 'launch_readiness_saved' );
+    }
+
     private function render_notice() {
         if ( empty( $_GET['notice'] ) ) {
             return;
@@ -778,6 +1653,19 @@ class TQ_Admin_Menu {
             'page_created'        => 'Quiz page created and published.',
             'page_exists'         => 'A quiz page already exists for this set.',
             'page_error'          => 'Could not create the quiz page — please try again.',
+            'booking_class_created' => 'Booking class created.',
+            'booking_class_updated' => 'Booking class updated.',
+            'booking_class_deleted' => 'Booking class deleted.',
+            'class_instance_created' => 'Class instance created.',
+            'class_instance_updated' => 'Class instance updated.',
+            'class_instance_deleted' => 'Class instance deleted.',
+            'provisioning_simulation_invalid_order' => 'Please provide a valid WooCommerce order ID.',
+            'provisioning_simulation_success' => 'Provisioning simulation completed. Check result details below.',
+            'provisioning_simulation_error' => 'Provisioning simulation failed. Check error details below.',
+            'enrollment_report_exported' => 'Enrollment report exported.',
+            'settings_saved' => 'Settings saved.',
+            'integration_checks_saved' => 'Integration QA checklist progress saved.',
+            'launch_readiness_saved' => 'Launch readiness progress saved.',
         );
 
         if ( ! isset( $labels[ $notice ] ) ) {

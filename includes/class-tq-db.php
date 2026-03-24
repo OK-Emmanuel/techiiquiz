@@ -116,6 +116,82 @@ class TQ_DB {
             KEY created_at (created_at)
         ) {$charset_collate};";
 
+        $sql[] = "CREATE TABLE {$this->table( 'classes' )} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL,
+            course_code VARCHAR(50) NOT NULL,
+            description LONGTEXT NULL,
+            workbook_url VARCHAR(500) NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY course_code (course_code)
+        ) {$charset_collate};";
+
+        $sql[] = "CREATE TABLE {$this->table( 'class_instances' )} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            class_id BIGINT UNSIGNED NOT NULL,
+            woocommerce_product_id BIGINT UNSIGNED NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            max_capacity INT UNSIGNED NOT NULL DEFAULT 12,
+            current_enrollment INT UNSIGNED NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY class_id (class_id),
+            KEY woocommerce_product_id (woocommerce_product_id),
+            KEY start_end (start_date, end_date)
+        ) {$charset_collate};";
+
+        $sql[] = "CREATE TABLE {$this->table( 'enrollments' )} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            user_id BIGINT UNSIGNED NOT NULL,
+            class_instance_id BIGINT UNSIGNED NOT NULL,
+            woocommerce_order_id BIGINT UNSIGNED NOT NULL,
+            enrollment_date DATETIME NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'active',
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_user_class_instance (user_id, class_instance_id),
+            KEY user_id (user_id),
+            KEY class_instance_id (class_instance_id),
+            KEY woocommerce_order_id (woocommerce_order_id),
+            KEY status (status)
+        ) {$charset_collate};";
+
+        $sql[] = "CREATE TABLE {$this->table( 'entitlements' )} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            enrollment_id BIGINT UNSIGNED NOT NULL,
+            resource_type VARCHAR(20) NOT NULL,
+            access_start DATE NOT NULL,
+            access_end DATE NOT NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY enrollment_id (enrollment_id),
+            KEY resource_type (resource_type),
+            KEY access_window (access_start, access_end),
+            KEY enrollment_resource (enrollment_id, resource_type)
+        ) {$charset_collate};";
+
+        $sql[] = "CREATE TABLE {$this->table( 'provisioning_logs' )} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            woocommerce_order_id BIGINT UNSIGNED NOT NULL,
+            user_id BIGINT UNSIGNED NULL,
+            class_instance_id BIGINT UNSIGNED NULL,
+            action VARCHAR(50) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'success',
+            message LONGTEXT NULL,
+            created_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY woocommerce_order_id (woocommerce_order_id),
+            KEY user_id (user_id),
+            KEY class_instance_id (class_instance_id),
+            KEY status (status),
+            KEY created_at (created_at)
+        ) {$charset_collate};";
+
         foreach ( $sql as $statement ) {
             dbDelta( $statement );
         }
@@ -727,5 +803,360 @@ class TQ_DB {
             ),
             ARRAY_A
         );
+    }
+
+    public function get_class_instance_by_product_id( $product_id ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'class_instances' )} WHERE woocommerce_product_id = %d LIMIT 1",
+                (int) $product_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function get_enrollment_by_user_and_instance( $user_id, $class_instance_id ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'enrollments' )} WHERE user_id = %d AND class_instance_id = %d LIMIT 1",
+                (int) $user_id,
+                (int) $class_instance_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_enrollment( $user_id, $class_instance_id, $woocommerce_order_id, $status = 'active' ) {
+        global $wpdb;
+
+        $inserted = $wpdb->insert(
+            $this->table( 'enrollments' ),
+            array(
+                'user_id'              => (int) $user_id,
+                'class_instance_id'    => (int) $class_instance_id,
+                'woocommerce_order_id' => (int) $woocommerce_order_id,
+                'enrollment_date'      => current_time( 'mysql' ),
+                'status'               => sanitize_key( $status ),
+            ),
+            array( '%d', '%d', '%d', '%s', '%s' )
+        );
+
+        if ( ! $inserted ) {
+            return 0;
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    public function create_entitlement( $enrollment_id, $resource_type, $access_start, $access_end, $is_active = 1 ) {
+        global $wpdb;
+
+        $inserted = $wpdb->insert(
+            $this->table( 'entitlements' ),
+            array(
+                'enrollment_id' => (int) $enrollment_id,
+                'resource_type' => sanitize_key( $resource_type ),
+                'access_start'  => sanitize_text_field( $access_start ),
+                'access_end'    => sanitize_text_field( $access_end ),
+                'is_active'     => (int) $is_active,
+                'created_at'    => current_time( 'mysql' ),
+                'updated_at'    => current_time( 'mysql' ),
+            ),
+            array( '%d', '%s', '%s', '%s', '%d', '%s', '%s' )
+        );
+
+        if ( ! $inserted ) {
+            return 0;
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    public function create_provisioning_log( $data ) {
+        global $wpdb;
+
+        return $wpdb->insert(
+            $this->table( 'provisioning_logs' ),
+            array(
+                'woocommerce_order_id' => isset( $data['woocommerce_order_id'] ) ? (int) $data['woocommerce_order_id'] : 0,
+                'user_id'              => isset( $data['user_id'] ) ? (int) $data['user_id'] : null,
+                'class_instance_id'    => isset( $data['class_instance_id'] ) ? (int) $data['class_instance_id'] : null,
+                'action'               => isset( $data['action'] ) ? sanitize_key( $data['action'] ) : 'provisioning',
+                'status'               => isset( $data['status'] ) ? sanitize_key( $data['status'] ) : 'success',
+                'message'              => isset( $data['message'] ) ? sanitize_textarea_field( $data['message'] ) : '',
+                'created_at'           => current_time( 'mysql' ),
+            ),
+            array( '%d', '%d', '%d', '%s', '%s', '%s', '%s' )
+        );
+    }
+
+    public function get_booking_classes() {
+        global $wpdb;
+
+        return $wpdb->get_results(
+            "SELECT c.*, COUNT(ci.id) AS instance_count
+             FROM {$this->table( 'classes' )} c
+             LEFT JOIN {$this->table( 'class_instances' )} ci ON ci.class_id = c.id
+             GROUP BY c.id
+             ORDER BY c.id DESC",
+            ARRAY_A
+        );
+    }
+
+    public function get_booking_class( $class_id ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'classes' )} WHERE id = %d",
+                (int) $class_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_booking_class( $data ) {
+        global $wpdb;
+
+        $inserted = $wpdb->insert(
+            $this->table( 'classes' ),
+            array(
+                'name'        => sanitize_text_field( $data['name'] ?? '' ),
+                'course_code' => sanitize_text_field( $data['course_code'] ?? '' ),
+                'description' => wp_kses_post( $data['description'] ?? '' ),
+                'workbook_url'=> esc_url_raw( $data['workbook_url'] ?? '' ),
+                'created_at'  => current_time( 'mysql' ),
+                'updated_at'  => current_time( 'mysql' ),
+            ),
+            array( '%s', '%s', '%s', '%s', '%s', '%s' )
+        );
+
+        if ( ! $inserted ) {
+            return 0;
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    public function update_booking_class( $class_id, $data ) {
+        global $wpdb;
+
+        return $wpdb->update(
+            $this->table( 'classes' ),
+            array(
+                'name'         => sanitize_text_field( $data['name'] ?? '' ),
+                'course_code'  => sanitize_text_field( $data['course_code'] ?? '' ),
+                'description'  => wp_kses_post( $data['description'] ?? '' ),
+                'workbook_url' => esc_url_raw( $data['workbook_url'] ?? '' ),
+                'updated_at'   => current_time( 'mysql' ),
+            ),
+            array( 'id' => (int) $class_id ),
+            array( '%s', '%s', '%s', '%s', '%s' ),
+            array( '%d' )
+        );
+    }
+
+    public function delete_booking_class( $class_id ) {
+        global $wpdb;
+
+        return $wpdb->delete(
+            $this->table( 'classes' ),
+            array( 'id' => (int) $class_id ),
+            array( '%d' )
+        );
+    }
+
+    public function get_class_instances() {
+        global $wpdb;
+
+        return $wpdb->get_results(
+            "SELECT ci.*, c.name AS class_name
+             FROM {$this->table( 'class_instances' )} ci
+             LEFT JOIN {$this->table( 'classes' )} c ON c.id = ci.class_id
+             ORDER BY ci.start_date DESC, ci.id DESC",
+            ARRAY_A
+        );
+    }
+
+    public function get_class_instance( $instance_id ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'class_instances' )} WHERE id = %d",
+                (int) $instance_id
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function create_class_instance( $data ) {
+        global $wpdb;
+
+        $inserted = $wpdb->insert(
+            $this->table( 'class_instances' ),
+            array(
+                'class_id'               => (int) ( $data['class_id'] ?? 0 ),
+                'woocommerce_product_id' => (int) ( $data['woocommerce_product_id'] ?? 0 ),
+                'start_date'             => sanitize_text_field( $data['start_date'] ?? '' ),
+                'end_date'               => sanitize_text_field( $data['end_date'] ?? '' ),
+                'max_capacity'           => (int) ( $data['max_capacity'] ?? 12 ),
+                'current_enrollment'     => (int) ( $data['current_enrollment'] ?? 0 ),
+                'created_at'             => current_time( 'mysql' ),
+                'updated_at'             => current_time( 'mysql' ),
+            ),
+            array( '%d', '%d', '%s', '%s', '%d', '%d', '%s', '%s' )
+        );
+
+        if ( ! $inserted ) {
+            return 0;
+        }
+
+        return (int) $wpdb->insert_id;
+    }
+
+    public function update_class_instance( $instance_id, $data ) {
+        global $wpdb;
+
+        return $wpdb->update(
+            $this->table( 'class_instances' ),
+            array(
+                'class_id'               => (int) ( $data['class_id'] ?? 0 ),
+                'woocommerce_product_id' => (int) ( $data['woocommerce_product_id'] ?? 0 ),
+                'start_date'             => sanitize_text_field( $data['start_date'] ?? '' ),
+                'end_date'               => sanitize_text_field( $data['end_date'] ?? '' ),
+                'max_capacity'           => (int) ( $data['max_capacity'] ?? 12 ),
+                'current_enrollment'     => (int) ( $data['current_enrollment'] ?? 0 ),
+                'updated_at'             => current_time( 'mysql' ),
+            ),
+            array( 'id' => (int) $instance_id ),
+            array( '%d', '%d', '%s', '%s', '%d', '%d', '%s' ),
+            array( '%d' )
+        );
+    }
+
+    public function delete_class_instance( $instance_id ) {
+        global $wpdb;
+
+        return $wpdb->delete(
+            $this->table( 'class_instances' ),
+            array( 'id' => (int) $instance_id ),
+            array( '%d' )
+        );
+    }
+
+    public function count_enrollments_for_instance( $instance_id ) {
+        global $wpdb;
+
+        return (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->table( 'enrollments' )} WHERE class_instance_id = %d",
+                (int) $instance_id
+            )
+        );
+    }
+
+    public function get_provisioning_logs( $limit = 50 ) {
+        global $wpdb;
+
+        return $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT pl.*, ci.start_date, ci.end_date
+                 FROM {$this->table( 'provisioning_logs' )} pl
+                 LEFT JOIN {$this->table( 'class_instances' )} ci ON ci.id = pl.class_instance_id
+                 ORDER BY pl.id DESC
+                 LIMIT %d",
+                (int) $limit
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function get_booking_class_by_code( $course_code ) {
+        global $wpdb;
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table( 'classes' )} WHERE course_code = %s LIMIT 1",
+                sanitize_text_field( $course_code )
+            ),
+            ARRAY_A
+        );
+    }
+
+    public function user_has_active_entitlement( $user_id, $resource_type, $class_id = 0 ) {
+        global $wpdb;
+
+        $user_id       = (int) $user_id;
+        $resource_type = sanitize_key( $resource_type );
+        $class_id      = (int) $class_id;
+
+        if ( $user_id <= 0 || '' === $resource_type ) {
+            return false;
+        }
+
+        $sql = "SELECT e.id
+                FROM {$this->table( 'entitlements' )} e
+                INNER JOIN {$this->table( 'enrollments' )} enr ON enr.id = e.enrollment_id
+                INNER JOIN {$this->table( 'class_instances' )} ci ON ci.id = enr.class_instance_id
+                WHERE enr.user_id = %d
+                  AND e.resource_type = %s
+                  AND e.is_active = 1
+                  AND CURDATE() >= e.access_start
+                  AND CURDATE() <= e.access_end";
+
+        if ( $class_id > 0 ) {
+            $sql .= ' AND ci.class_id = %d';
+            $found_id = $wpdb->get_var( $wpdb->prepare( $sql . ' LIMIT 1', $user_id, $resource_type, $class_id ) );
+        } else {
+            $found_id = $wpdb->get_var( $wpdb->prepare( $sql . ' LIMIT 1', $user_id, $resource_type ) );
+        }
+
+        return ! empty( $found_id );
+    }
+
+    public function get_enrollment_report_rows( $class_instance_id = 0 ) {
+        global $wpdb;
+
+        $class_instance_id = (int) $class_instance_id;
+        $users_table       = $wpdb->users;
+
+        $sql = "SELECT
+                    enr.id AS enrollment_id,
+                    enr.user_id,
+                    enr.class_instance_id,
+                    enr.enrollment_date,
+                    enr.status AS enrollment_status,
+                    ci.start_date,
+                    ci.end_date,
+                    c.name AS class_name,
+                    c.course_code,
+                    u.user_email,
+                    u.display_name,
+                    MIN(e.access_start) AS access_start,
+                    MAX(e.access_end) AS access_end
+                FROM {$this->table( 'enrollments' )} enr
+                INNER JOIN {$this->table( 'class_instances' )} ci ON ci.id = enr.class_instance_id
+                INNER JOIN {$this->table( 'classes' )} c ON c.id = ci.class_id
+                LEFT JOIN {$this->table( 'entitlements' )} e ON e.enrollment_id = enr.id
+                LEFT JOIN {$users_table} u ON u.ID = enr.user_id";
+
+        $args = array();
+        if ( $class_instance_id > 0 ) {
+            $sql    .= ' WHERE enr.class_instance_id = %d';
+            $args[] = $class_instance_id;
+        }
+
+        $sql .= ' GROUP BY enr.id ORDER BY enr.enrollment_date DESC';
+
+        if ( ! empty( $args ) ) {
+            return $wpdb->get_results( $wpdb->prepare( $sql, ...$args ), ARRAY_A );
+        }
+
+        return $wpdb->get_results( $sql, ARRAY_A );
     }
 }
