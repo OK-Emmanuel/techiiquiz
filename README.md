@@ -42,3 +42,44 @@ Both types are objective radio-button questions at runtime.
 ## Next suggested step
 
 Implement persistent import history/logging, then finalize review-mode UX enhancements.
+
+## Plugin updates from GitHub
+
+The plugin now supports WordPress admin updates via GitHub releases.
+
+### 1) Point to your real GitHub repo
+
+Update the plugin header in `techiquiz.php`:
+
+- `Update URI: https://github.com/OK-Emmanuelg/techiiquiz`
+
+Update the default repo URL in `includes/class-tq-updater.php`:
+
+- `https://github.com/your-org/techiiquiz`
+
+### 2) Install dependencies
+
+Run Composer in the plugin root so `vendor/` contains Plugin Update Checker:
+
+- `composer install --no-dev`
+
+### 3) Create a release whenever you bump version
+
+- Increase `Version:` in plugin header (`techiquiz.php`)
+- Commit and push
+- Create a GitHub Release (tag like `v0.1.1`)
+- Attach a plugin zip as a release asset, or let the release source zip be used
+
+WordPress sites with the plugin installed will then see the update in Plugins and can click Update.
+
+### 4) Optional: private repo token
+
+If the GitHub repo is private, inject a token from another plugin or mu-plugin:
+
+- Filter: `tq_updater_github_token`
+
+Other available filters:
+
+- `tq_updater_repo_url`
+- `tq_updater_branch`
+- `tq_updater_slug`
