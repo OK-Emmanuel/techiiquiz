@@ -5,6 +5,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class TQ_Assets {
+    private static function enqueue_tailwind() {
+        if ( ! wp_script_is( 'tailwindcss', 'enqueued' ) ) {
+            wp_enqueue_script( 'tailwindcss', 'https://cdn.tailwindcss.com', array(), null, false );
+            wp_add_inline_script(
+                'tailwindcss',
+                'tailwind.config={theme:{extend:{colors:{brand:{blue:"#312e81",red:"#dc2626"}}}}};',
+                'before'
+            );
+        }
+    }
+
     public function register() {
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
     }
@@ -17,9 +28,24 @@ class TQ_Assets {
             TQ_VERSION
         );
 
+        wp_register_style(
+            'tq-booking',
+            TQ_PLUGIN_URL . 'public/css/booking.css',
+            array(),
+            TQ_VERSION
+        );
+
         wp_register_script(
             'tq-quiz-app',
             TQ_PLUGIN_URL . 'public/js/quiz-app.js',
+            array(),
+            TQ_VERSION,
+            true
+        );
+
+        wp_register_script(
+            'tq-booking-calendar',
+            TQ_PLUGIN_URL . 'public/js/booking-calendar.js',
             array(),
             TQ_VERSION,
             true
@@ -37,19 +63,18 @@ class TQ_Assets {
 
     public static function enqueue_quiz_assets() {
         // Tailwind CDN (play script — scans DOM dynamically, sufficient for plugin UI)
-        if ( ! wp_script_is( 'tailwindcss', 'enqueued' ) ) {
-            wp_enqueue_script( 'tailwindcss', 'https://cdn.tailwindcss.com', array(), null, false );
-            wp_add_inline_script(
-                'tailwindcss',
-                'tailwind.config={theme:{extend:{colors:{brand:{blue:"#312e81",red:"#dc2626"}}}}};',
-                'before'
-            );
-        }
+        self::enqueue_tailwind();
         wp_enqueue_style( 'tq-quiz' );
         wp_enqueue_script( 'tq-quiz-app' );
     }
 
     public static function enqueue_public_style() {
         wp_enqueue_style( 'tq-quiz' );
+    }
+
+    public static function enqueue_booking_assets() {
+        self::enqueue_tailwind();
+        wp_enqueue_style( 'tq-booking' );
+        wp_enqueue_script( 'tq-booking-calendar' );
     }
 }

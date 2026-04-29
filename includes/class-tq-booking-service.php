@@ -75,7 +75,8 @@ class TQ_Booking_Service {
             return $user_id;
         }
 
-        $created_count = 0;
+        $created_count      = 0;
+        $provisioned_rows   = array();
         foreach ( $order->get_items() as $item ) {
             $product_id = (int) $item->get_product_id();
             if ( $product_id <= 0 ) {
@@ -87,6 +88,8 @@ class TQ_Booking_Service {
                 $this->log_event( $order_id, $user_id, 0, 'mapping_lookup', 'error', 'No class instance mapped to product ' . $product_id );
                 continue;
             }
+
+            $booking_class = $this->db->get_booking_class( (int) ( $class_instance['class_id'] ?? 0 ) );
 
             $enrollment = $this->db->get_enrollment_by_user_and_instance( $user_id, (int) $class_instance['id'] );
             if ( $enrollment ) {
@@ -112,7 +115,20 @@ class TQ_Booking_Service {
             }
 
             $this->log_event( $order_id, $user_id, (int) $class_instance['id'], 'provisioning_complete', 'success', 'Enrollment and entitlements created.' );
+
+            $provisioned_rows[] = array(
+                'class_name'   => isset( $booking_class['name'] ) ? (string) $booking_class['name'] : 'Class #' . (int) ( $class_instance['class_id'] ?? 0 ),
+                'course_code'  => isset( $booking_class['course_code'] ) ? (string) $booking_class['course_code'] : '',
+                'start_date'   => (string) $class_instance['start_date'],
+                'end_date'     => (string) $class_instance['end_date'],
+                'access_end'   => (string) $access_end,
+                'workbook_url' => isset( $booking_class['workbook_url'] ) ? (string) $booking_class['workbook_url'] : '',
+            );
             $created_count++;
+        }
+
+        if ( $created_count > 0 ) {
+            $this->send_booking_confirmation_email( $order, $user_id, $provisioned_rows );
         }
 
         return array(
@@ -121,6 +137,46 @@ class TQ_Booking_Service {
             'user_id'               => (int) $user_id,
             'provisioned_instances' => (int) $created_count,
         );
+    }
+
+    private function send_booking_confirmation_email( $order, $user_id, $provisioned_rows ) {
+        $email = sanitize_email( $order->get_billing_email() );
+        if ( ! $email || empty( $provisioned_rows ) ) {
+            return;
+        }
+
+        $user      = get_user_by( 'id', (int) $user_id );
+        $username  = $user && isset( $user->user_login ) ? (string) $user->user_login : $email;
+        $login_url = wp_login_url();
+
+        $subject = 'Booking confirmed - TechiQuiz';
+        $lines   = array();
+
+        $lines[] = 'Hello,';
+        $lines[] = '';
+        $lines[] = 'Your booking is confirmed. Here are your class details:';
+        $lines[] = '';
+
+        foreach ( $provisioned_rows as $row ) {
+            $title = (string) ( $row['class_name'] ?? 'Class' );
+            if ( ! empty( $row['course_code'] ) ) {
+                $title .= ' (' . (string) $row['course_code'] . ')';
+            }
+            $lines[] = '- ' . $title;
+            $lines[] = '  Dates: ' . (string) ( $row['start_date'] ?? '' ) . ' to ' . (string) ( $row['end_date'] ?? '' );
+            $lines[] = '  Access until: ' . (string) ( $row['access_end'] ?? '' );
+            if ( ! empty( $row['workbook_url'] ) ) {
+                $lines[] = '  Workbook: ' . esc_url_raw( (string) $row['workbook_url'] );
+            }
+            $lines[] = '';
+        }
+
+        $lines[] = 'Account login: ' . $login_url;
+        $lines[] = 'Username: ' . $username;
+        $lines[] = '';
+        $lines[] = 'If you need to change your booking, visit your My Bookings page.';
+
+        wp_mail( $email, $subject, implode( "\n", $lines ) );
     }
 
     private function find_or_create_user( $email ) {

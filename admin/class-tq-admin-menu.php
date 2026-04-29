@@ -925,7 +925,7 @@ class TQ_Admin_Menu {
         }
         echo '</select></p>';
 
-        echo '<p><label>WooCommerce Product</label><br /><select name="woocommerce_product_id" required>';
+        echo '<p><label>Shop Product</label><br /><select name="woocommerce_product_id" required>';
         echo '<option value="">Select product</option>';
         foreach ( $products as $product_id ) {
             $product = wc_get_product( $product_id );
@@ -946,9 +946,9 @@ class TQ_Admin_Menu {
 
         echo '<div class="tq-card" style="max-width:1200px; margin-top:16px;">';
         echo '<h2>Existing Class Instances</h2>';
-        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>ID</th><th>Class</th><th>Product</th><th>Start</th><th>End</th><th>Access End (+45d)</th><th>Capacity</th><th>Enrollments</th><th>Actions</th></tr></thead><tbody>';
+        echo '<table class="widefat striped tq-modern-table"><thead><tr><th>ID</th><th>Class</th><th>Product</th><th>Shop</th><th>Start</th><th>End</th><th>Access End (+45d)</th><th>Capacity</th><th>Enrollments</th><th>Actions</th></tr></thead><tbody>';
         if ( empty( $instances ) ) {
-            echo '<tr><td colspan="9">No class instances yet.</td></tr>';
+            echo '<tr><td colspan="10">No class instances yet.</td></tr>';
         } else {
             foreach ( $instances as $instance ) {
                 $edit_link    = add_query_arg(
@@ -965,6 +965,24 @@ class TQ_Admin_Menu {
                 echo '<td>' . esc_html( $instance['id'] ) . '</td>';
                 echo '<td>' . esc_html( $instance['class_name'] ?: 'N/A' ) . '</td>';
                 echo '<td>#' . esc_html( $instance['woocommerce_product_id'] ) . '</td>';
+                echo '<td>';
+                if ( ! empty( $instance['woocommerce_product_id'] ) ) {
+                    $shop_edit_link = add_query_arg(
+                        array(
+                            'post'   => (int) $instance['woocommerce_product_id'],
+                            'action' => 'edit',
+                        ),
+                        admin_url( 'post.php' )
+                    );
+                    $shop_view_link = get_permalink( (int) $instance['woocommerce_product_id'] );
+                    echo '<a class="button button-small" href="' . esc_url( $shop_edit_link ) . '">Edit Price</a>';
+                    if ( ! empty( $shop_view_link ) ) {
+                        echo ' <a class="button button-small" href="' . esc_url( $shop_view_link ) . '" target="_blank" rel="noopener noreferrer">View</a>';
+                    }
+                } else {
+                    echo 'Not mapped';
+                }
+                echo '</td>';
                 echo '<td>' . esc_html( $instance['start_date'] ) . '</td>';
                 echo '<td>' . esc_html( $instance['end_date'] ) . '</td>';
                 echo '<td>' . esc_html( $access_end ) . '</td>';

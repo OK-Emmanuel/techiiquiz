@@ -39,6 +39,41 @@ Questions now include:
 
 Both types are objective radio-button questions at runtime.
 
+## Booking and Shop flow (current)
+
+The plugin now includes student-facing booking UI tied to WooCommerce products that are mapped in TechiQuiz Class Instances.
+
+- Booking UI is Tailwind-first (with minimal CSS fallback in `public/css/booking.css`).
+
+### Implemented booking shortcodes
+
+- `[tq_booking_calendar title="Book a class" subtitle="..." cta_label="Book now"]`
+  - Renders a three-month rolling booking calendar.
+  - Shows class/date/capacity context and sends students to WooCommerce cart with `add-to-cart`.
+- `[tq_my_bookings calendar_url="/booking/"]`
+  - Renders each logged-in student's enrollments.
+  - Supports self-service **Cancel booking**.
+  - Supports **Change booking** (cancel current booking, then rebook from calendar).
+
+### Admin setup checklist
+
+1. Create or confirm WooCommerce products for each class offering.
+2. In TechiQuiz -> Booking Classes, create class templates.
+3. In TechiQuiz -> Class Instances, map each instance to a Shop product and dates/capacity.
+4. Place booking shortcodes on frontend pages:
+   - Booking page: `[tq_booking_calendar]`
+   - Student dashboard page: `[tq_my_bookings calendar_url="/booking/"]`
+5. Complete a test checkout to verify provisioning logs and confirmation email.
+
+### Pricing edits
+
+- Use WooCommerce product editing for prices.
+- TechiQuiz -> Class Instances now includes Shop quick links (Edit Price / View).
+
+### Production setup guide
+
+- See `docs/production-go-live.md` for a granular launch checklist.
+
 ## Next suggested step
 
 Implement persistent import history/logging, then finalize review-mode UX enhancements.

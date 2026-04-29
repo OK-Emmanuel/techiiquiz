@@ -1159,4 +1159,83 @@ class TQ_DB {
 
         return $wpdb->get_results( $sql, ARRAY_A );
     }
+
+    public function get_user_enrollments( $user_id ) {
+        global $wpdb;
+
+        $user_id = (int) $user_id;
+        if ( $user_id <= 0 ) {
+            return array();
+        }
+
+        $sql = "SELECT
+                    enr.id AS enrollment_id,
+                    enr.status AS enrollment_status,
+                    enr.enrollment_date,
+                    enr.woocommerce_order_id,
+                    ci.id AS class_instance_id,
+                    ci.start_date,
+                    ci.end_date,
+                    ci.max_capacity,
+                    ci.woocommerce_product_id,
+                    c.id AS class_id,
+                    c.name AS class_name,
+                    c.course_code,
+                    c.workbook_url,
+                    MIN(e.access_start) AS access_start,
+                    MAX(e.access_end) AS access_end,
+                    MAX(e.is_active) AS has_active_entitlement
+                FROM {$this->table( 'enrollments' )} enr
+                INNER JOIN {$this->table( 'class_instances' )} ci ON ci.id = enr.class_instance_id
+                INNER JOIN {$this->table( 'classes' )} c ON c.id = ci.class_id
+                LEFT JOIN {$this->table( 'entitlements' )} e ON e.enrollment_id = enr.id
+                WHERE enr.user_id = %d
+                GROUP BY enr.id
+                ORDER BY ci.start_date DESC, enr.enrollment_date DESC";
+
+        return $wpdb->get_results( $wpdb->prepare( $sql, $user_id ), ARRAY_A );
+    }
+
+    public function cancel_enrollment_for_user( $enrollment_id, $user_id ) {
+        global $wpdb;
+
+        $enrollment_id = (int) $enrollment_id;
+        $user_id       = (int) $user_id;
+
+        if ( $enrollment_id <= 0 || $user_id <= 0 ) {
+            return false;
+        }
+
+        $updated_enrollment = $wpdb->update(
+            $this->table( 'enrollments' ),
+            array( 'status' => 'cancelled' ),
+            array(
+                'id'      => $enrollment_id,
+                'user_id' => $user_id,
+            ),
+            array( '%s' ),
+            array( '%d', '%d' )
+        );
+
+        if ( false === $updated_enrollment ) {
+            return false;
+        }
+
+        $updated_entitlements = $wpdb->update(
+            $this->table( 'entitlements' ),
+            array(
+                'is_active'  => 0,
+                'updated_at' => current_time( 'mysql' ),
+            ),
+            array( 'enrollment_id' => $enrollment_id ),
+            array( '%d', '%s' ),
+            array( '%d' )
+        );
+
+        if ( false === $updated_entitlements ) {
+            return false;
+        }
+
+        return true;
+    }
 }

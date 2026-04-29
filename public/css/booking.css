@@ -1,0 +1,9 @@
+/* Tailwind-first booking UI.
+   This file is intentionally minimal and only provides fallback behavior if utility classes are unavailable. */
+
+.tq-booking-calendar,
+.tq-booking-dashboard {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}

@@ -127,6 +127,14 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [ ] Admin UI for class instance/booking calendar (create, edit, delete)
 - [ ] WooCommerce webhook handler for order completion
 
+### Notes
+- Frontend booking calendar implementation has started with a new `[tq_booking_calendar]` shortcode and a client-side rolling calendar that reuses the existing class-instance and WooCommerce product mapping data.
+- Added `[tq_my_bookings]` shortcode with self-service cancel action (marks enrollment as `cancelled` and deactivates entitlements).
+- Class Instances admin table now includes Shop quick links for direct WooCommerce price editing.
+- Booking provisioning now sends a dedicated confirmation email with class dates, access window, workbook link, and login details.
+- Refactored booking frontend to Tailwind-first markup/components with minimal fallback CSS.
+- Added `docs/production-go-live.md` with granular setup and launch checklist for immediate production rollout.
+
 ### Execution Tasks
 
 #### 4a: Database Schema & Activation
