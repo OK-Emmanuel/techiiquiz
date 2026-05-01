@@ -5,9 +5,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class TQ_DB {
+    private const SCHEMA_VERSION = 2;
+
     public function table( $suffix ) {
         global $wpdb;
         return $wpdb->prefix . 'tq_' . $suffix;
+    }
+
+    public function maybe_upgrade_schema() {
+        $current_version = (int) get_option( 'tq_schema_version', 0 );
+
+        if ( $current_version < self::SCHEMA_VERSION ) {
+            $this->create_tables();
+            update_option( 'tq_schema_version', self::SCHEMA_VERSION );
+        }
     }
 
     public function create_tables() {
@@ -121,6 +132,7 @@ class TQ_DB {
             name VARCHAR(255) NOT NULL,
             course_code VARCHAR(50) NOT NULL,
             description LONGTEXT NULL,
+            class_rules LONGTEXT NULL,
             workbook_url VARCHAR(500) NULL,
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
@@ -928,11 +940,12 @@ class TQ_DB {
                 'name'        => sanitize_text_field( $data['name'] ?? '' ),
                 'course_code' => sanitize_text_field( $data['course_code'] ?? '' ),
                 'description' => wp_kses_post( $data['description'] ?? '' ),
+                'class_rules' => sanitize_textarea_field( $data['class_rules'] ?? '' ),
                 'workbook_url'=> esc_url_raw( $data['workbook_url'] ?? '' ),
                 'created_at'  => current_time( 'mysql' ),
                 'updated_at'  => current_time( 'mysql' ),
             ),
-            array( '%s', '%s', '%s', '%s', '%s', '%s' )
+            array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
         );
 
         if ( ! $inserted ) {
@@ -951,11 +964,12 @@ class TQ_DB {
                 'name'         => sanitize_text_field( $data['name'] ?? '' ),
                 'course_code'  => sanitize_text_field( $data['course_code'] ?? '' ),
                 'description'  => wp_kses_post( $data['description'] ?? '' ),
+                'class_rules'  => sanitize_textarea_field( $data['class_rules'] ?? '' ),
                 'workbook_url' => esc_url_raw( $data['workbook_url'] ?? '' ),
                 'updated_at'   => current_time( 'mysql' ),
             ),
             array( 'id' => (int) $class_id ),
-            array( '%s', '%s', '%s', '%s', '%s' ),
+            array( '%s', '%s', '%s', '%s', '%s', '%s' ),
             array( '%d' )
         );
     }

@@ -48,8 +48,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Courses',
-            'Courses',
+            'Quiz Bank',
+            'Quiz Bank',
             'manage_options',
             'tq-courses',
             array( $this, 'render_courses_page' )
@@ -57,8 +57,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Sets',
-            'Sets',
+            'Question Groups',
+            'Question Groups',
             'manage_options',
             'tq-sets',
             array( $this, 'render_sets_page' )
@@ -66,8 +66,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Question Bank',
-            'Question Bank',
+            'Quiz Questions',
+            'Quiz Questions',
             'manage_options',
             'tq-questions',
             array( $this, 'render_questions_page' )
@@ -75,8 +75,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Importer',
-            'Importer',
+            'Upload Questions',
+            'Upload Questions',
             'manage_options',
             'tq-importer',
             array( $this, 'render_importer_page' )
@@ -84,8 +84,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Booking Classes',
-            'Booking Classes',
+            'Training Catalog',
+            'Training Catalog',
             'manage_options',
             'tq-booking-classes',
             array( $this, 'render_booking_classes_page' )
@@ -93,8 +93,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Class Instances',
-            'Class Instances',
+            'Offered Classes',
+            'Offered Classes',
             'manage_options',
             'tq-class-instances',
             array( $this, 'render_class_instances_page' )
@@ -111,8 +111,8 @@ class TQ_Admin_Menu {
 
         add_submenu_page(
             'tq-courses',
-            'Enrollment Reports',
-            'Enrollment Reports',
+            'Student Roster',
+            'Student Roster',
             'manage_options',
             'tq-enrollment-reports',
             array( $this, 'render_enrollment_reports_page' )
@@ -849,6 +849,8 @@ class TQ_Admin_Menu {
         echo '<p><label>Course Code</label><br /><input class="regular-text" name="course_code" required value="' . esc_attr( $editing['course_code'] ?? '' ) . '" /></p>';
         echo '<p><label>Workbook URL</label><br /><input class="regular-text" type="url" name="workbook_url" value="' . esc_attr( $editing['workbook_url'] ?? '' ) . '" /></p>';
         echo '<p><label>Description</label><br /><textarea class="large-text" rows="4" name="description">' . esc_textarea( $editing['description'] ?? '' ) . '</textarea></p>';
+        echo '<p><label>Additional Class Rules</label><br /><textarea class="large-text" rows="6" name="class_rules" placeholder="One rule per line">' . esc_textarea( $editing['class_rules'] ?? '' ) . '</textarea></p>';
+        echo '<p class="description">Default class rules always appear automatically. Use this field for extra rules specific to this class.</p>';
         submit_button( $editing ? 'Update Class' : 'Create Class', 'primary tq-btn-primary' );
         echo '</form>';
         echo '</div>';
@@ -1313,6 +1315,7 @@ class TQ_Admin_Menu {
             'course_code'  => isset( $_POST['course_code'] ) ? sanitize_text_field( wp_unslash( $_POST['course_code'] ) ) : '',
             'workbook_url' => isset( $_POST['workbook_url'] ) ? esc_url_raw( wp_unslash( $_POST['workbook_url'] ) ) : '',
             'description'  => isset( $_POST['description'] ) ? wp_kses_post( wp_unslash( $_POST['description'] ) ) : '',
+            'class_rules'  => isset( $_POST['class_rules'] ) ? sanitize_textarea_field( wp_unslash( $_POST['class_rules'] ) ) : '',
         );
 
         if ( $class_id > 0 ) {

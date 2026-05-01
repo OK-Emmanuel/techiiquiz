@@ -40,6 +40,7 @@ add_action(
         TQ_Updater::register();
 
         $db              = new TQ_DB();
+        $db->maybe_upgrade_schema();
         $quiz_service    = new TQ_Quiz_Service( $db );
         $session_service = new TQ_Session_Service( $db, $quiz_service );
 

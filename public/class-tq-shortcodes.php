@@ -15,6 +15,7 @@ class TQ_Shortcodes {
         add_shortcode( 'tq_quiz', array( $this, 'render_quiz' ) );
         add_shortcode( 'tq_workbook', array( $this, 'render_workbook' ) );
         add_shortcode( 'tq_landing_video', array( $this, 'render_landing_video' ) );
+        add_shortcode( 'tq_class_details', array( $this, 'render_class_details' ) );
         add_shortcode( 'tq_booking_calendar', array( $this, 'render_booking_calendar' ) );
         add_shortcode( 'tq_my_bookings', array( $this, 'render_my_bookings' ) );
     }
@@ -102,6 +103,24 @@ class TQ_Shortcodes {
         return $this->db->user_has_active_entitlement( (int) $user_id, sanitize_key( $resource_type ), (int) $class_id );
     }
 
+    private function parse_class_rules( $raw_rules ) {
+        $rules = preg_split( '/\r\n|\r|\n/', (string) $raw_rules );
+
+        if ( ! is_array( $rules ) ) {
+            return array();
+        }
+
+        $rules = array_map( 'trim', $rules );
+        $rules = array_filter(
+            $rules,
+            static function ( $rule ) {
+                return '' !== $rule;
+            }
+        );
+
+        return array_values( $rules );
+    }
+
     public function render_landing_video( $atts ) {
         $atts = shortcode_atts(
             array(
@@ -169,6 +188,165 @@ class TQ_Shortcodes {
         return (string) ob_get_clean();
     }
 
+        public function render_class_details( $atts ) {
+            $atts = shortcode_atts(
+                array(
+                    'instance_id' => 0,
+                    'class_id'    => 0,
+                ),
+                $atts,
+                'tq_class_details'
+            );
+
+            $instance_id = (int) $atts['instance_id'];
+            $class_id    = (int) $atts['class_id'];
+
+            if ( $instance_id <= 0 && $class_id <= 0 ) {
+                return '<div class="bg-red-50 border-l-4 border-brand-red p-4 text-red-900">Class reference missing. Use instance_id or class_id attribute.</div>';
+            }
+
+            $instance = null;
+            $class    = null;
+
+            if ( $instance_id > 0 ) {
+                $instance = $this->db->get_class_instance( $instance_id );
+                if ( $instance ) {
+                    $class_id = (int) ( $instance['class_id'] ?? 0 );
+                    $class    = $this->db->get_booking_class( $class_id );
+                }
+            } elseif ( $class_id > 0 ) {
+                $class = $this->db->get_booking_class( $class_id );
+            }
+
+            if ( ! $instance || ! $class ) {
+                return '<div class="bg-red-50 border-l-4 border-brand-red p-4 text-red-900">Class not found.</div>';
+            }
+
+            $max_capacity    = max( 1, (int) ( $instance['max_capacity'] ?? 12 ) );
+            $enrolled_count  = max( 0, (int) $this->db->count_enrollments_for_instance( $instance_id ) );
+            $available_seats = max( 0, $max_capacity - $enrolled_count );
+            $access_end      = gmdate( 'Y-m-d', strtotime( (string) $instance['end_date'] . ' +45 days' ) );
+            $product_id      = (int) ( $instance['woocommerce_product_id'] ?? 0 );
+
+            TQ_Assets::enqueue_booking_assets();
+
+            $default_rules = array(
+                'Well Control is a TEAM Effort',
+                'Do Not Dominate',
+                'Respect Opinions',
+                'Respect Time',
+                'Must Not Be Absent More Than 4 Hours',
+                'No Phone Usage During Lectures (must be on silent/vibrate; calls returned outside lecture hall)',
+                'No Electronic Recording of Lectures',
+            );
+            $custom_rules  = $this->parse_class_rules( $class['class_rules'] ?? '' );
+
+            ob_start();
+            ?>
+            <article class="bg-white rounded-2xl shadow-lg overflow-hidden max-w-3xl mx-auto">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-brand-blue to-blue-600 text-white p-8">
+                    <h2 class="text-3xl font-bold mb-2"><?php echo esc_html( $class['name'] ?? 'Class' ); ?></h2>
+                    <p class="text-blue-100">Course Code: <strong><?php echo esc_html( $class['course_code'] ?? 'N/A' ); ?></strong></p>
+                </div>
+
+                <div class="p-8 space-y-8">
+                    <!-- About Section -->
+                    <?php if ( ! empty( $class['description'] ) ) : ?>
+                        <section>
+                            <h3 class="text-xl font-bold text-slate-900 mb-4 pb-2 border-b-2 border-brand-blue">About This Class</h3>
+                            <p class="text-slate-700 leading-relaxed"><?php echo wp_kses_post( $class['description'] ?? '' ); ?></p>
+                        </section>
+                    <?php endif; ?>
+
+                    <!-- Key Details Grid -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-50 border-2 border-brand-blue rounded-lg p-4">
+                            <p class="text-xs uppercase tracking-widest text-slate-600 font-bold">Start Date</p>
+                            <p class="text-2xl font-bold text-brand-blue mt-2"><?php echo esc_html( gmdate( 'M j, Y', strtotime( (string) $instance['start_date'] ) ) ); ?></p>
+                        </div>
+                        <div class="bg-blue-50 border-2 border-brand-blue rounded-lg p-4">
+                            <p class="text-xs uppercase tracking-widest text-slate-600 font-bold">End Date</p>
+                            <p class="text-2xl font-bold text-brand-blue mt-2"><?php echo esc_html( gmdate( 'M j, Y', strtotime( (string) $instance['end_date'] ) ) ); ?></p>
+                        </div>
+                        <div class="bg-red-50 border-2 border-brand-red rounded-lg p-4">
+                            <p class="text-xs uppercase tracking-widest text-slate-600 font-bold">Access Through</p>
+                            <p class="text-2xl font-bold text-brand-red mt-2"><?php echo esc_html( gmdate( 'M j, Y', strtotime( $access_end ) ) ); ?></p>
+                            <p class="text-xs text-slate-600 mt-1">(45 days after class ends)</p>
+                        </div>
+                        <div class="bg-slate-50 border-2 border-slate-300 rounded-lg p-4">
+                            <p class="text-xs uppercase tracking-widest text-slate-600 font-bold">Seats Available</p>
+                            <p class="text-2xl font-bold text-slate-900 mt-2"><?php echo esc_html( $available_seats . ' / ' . $max_capacity ); ?></p>
+                        </div>
+                    </div>
+
+                    <!-- Class Rules Section -->
+                    <section>
+                        <h3 class="text-xl font-bold text-slate-900 mb-4 pb-2 border-b-2 border-brand-blue">Class Rules</h3>
+                        <ul class="space-y-3">
+                            <?php foreach ( $default_rules as $rule ) : ?>
+                                <li class="flex items-start">
+                                    <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-brand-blue text-white flex-shrink-0 font-bold text-sm">✓</span>
+                                    <span class="ml-3 text-slate-700"><?php echo esc_html( $rule ); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <?php if ( ! empty( $custom_rules ) ) : ?>
+                            <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">Additional Rules for This Class</p>
+                                <ul class="mt-3 space-y-3">
+                                    <?php foreach ( $custom_rules as $rule ) : ?>
+                                        <li class="flex items-start">
+                                            <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-brand-red text-white flex-shrink-0 font-bold text-sm">+</span>
+                                            <span class="ml-3 text-slate-700"><?php echo esc_html( $rule ); ?></span>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+
+                    <!-- Pre-Class Resources -->
+                    <section class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+                        <h4 class="font-bold text-amber-900 mb-2">Before Class Starts</h4>
+                        <p class="text-sm text-amber-800">Please review the following materials to prepare for class:</p>
+                        <ul class="text-sm text-amber-800 list-disc list-inside mt-2 space-y-1">
+                            <li>Workbook</li>
+                            <li>Pocket Pro Guide</li>
+                            <li>Killsheets</li>
+                            <li>Formula Sheets</li>
+                        </ul>
+                    </section>
+
+                    <!-- Price Section -->
+                    <?php if ( $product_id > 0 && function_exists( 'wc_get_product' ) ) : ?>
+                        <?php $product = wc_get_product( $product_id ); ?>
+                        <?php if ( $product ) : ?>
+                            <div class="bg-slate-100 p-6 rounded-lg flex items-baseline justify-between">
+                                <span class="text-slate-600 font-semibold text-lg">Total Price</span>
+                                <span class="text-4xl font-bold text-brand-blue"><?php echo wp_kses_post( $product->get_price_html() ); ?></span>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3 pt-4">
+                        <?php if ( 0 === $available_seats ) : ?>
+                            <button disabled class="flex-1 bg-slate-400 text-white font-bold py-4 px-6 rounded-lg cursor-not-allowed text-lg">
+                                Class Full
+                            </button>
+                        <?php elseif ( $product_id > 0 ) : ?>
+                            <button onclick="window.location.href='<?php echo esc_url( add_query_arg( array( 'add-to-cart' => $product_id, 'quantity' => '1' ), function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : home_url( '/cart/' ) ) ); ?>'" class="flex-1 bg-brand-blue hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition text-lg">
+                                Reserve My Seat
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </article>
+            <?php
+            return (string) ob_get_clean();
+        }
+
     public function render_booking_calendar( $atts ) {
         $atts = shortcode_atts(
             array(
@@ -200,6 +378,8 @@ class TQ_Shortcodes {
                     'availability' => 'seats available',
                     'full'         => 'Full',
                     'bookNow'      => $atts['cta_label'],
+                    'previousMonth'=> 'Previous month',
+                    'nextMonth'    => 'Next month',
                     'empty'        => $atts['empty_label'],
                     'loading'      => 'Loading schedule...',
                     'error'        => 'Unable to load the schedule.',
@@ -226,6 +406,7 @@ class TQ_Shortcodes {
                 'name'          => sanitize_text_field( $class['name'] ?? '' ),
                 'course_code'   => sanitize_text_field( $class['course_code'] ?? '' ),
                 'description'   => wp_strip_all_tags( (string) ( $class['description'] ?? '' ) ),
+                'class_rules'   => $this->parse_class_rules( $class['class_rules'] ?? '' ),
                 'workbook_url'  => esc_url_raw( $class['workbook_url'] ?? '' ),
                 'instance_count' => (int) ( $class['instance_count'] ?? 0 ),
             );
@@ -248,6 +429,7 @@ class TQ_Shortcodes {
                 'name'          => sanitize_text_field( $instance['class_name'] ?? '' ),
                 'course_code'   => '',
                 'description'   => '',
+                'class_rules'   => array(),
                 'workbook_url'  => '',
                 'instance_count' => 0,
             );
@@ -263,6 +445,7 @@ class TQ_Shortcodes {
                 'class_name'      => $class_info['name'],
                 'course_code'     => $class_info['course_code'],
                 'description'     => $class_info['description'],
+                'class_rules'     => $class_info['class_rules'],
                 'workbook_url'    => $class_info['workbook_url'],
                 'product_id'      => $product_id,
                 'start_date'      => $start_date,
@@ -324,21 +507,21 @@ class TQ_Shortcodes {
         TQ_Assets::enqueue_booking_assets();
 
         ob_start();
-        echo '<section class="mt-4 rounded-2xl border border-slate-700/60 bg-slate-900/90 p-4 text-slate-100 sm:p-5">';
+        echo '<section class="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-slate-900 shadow-sm sm:p-5">';
         echo '<header>';
-        echo '<h2 class="text-2xl font-black tracking-tight">' . esc_html( $atts['title'] ) . '</h2>';
-        echo '<p class="mt-2 text-sm text-slate-300">Manage your current enrollments, or change to a new date by booking another class.</p>';
+        echo '<h2 class="text-2xl font-black tracking-tight text-slate-900">' . esc_html( $atts['title'] ) . '</h2>';
+        echo '<p class="mt-2 text-sm text-slate-600">Manage your current enrollments, or change to a new date by booking another class.</p>';
         if ( '' !== $calendar_url ) {
-            echo '<a class="mt-3 inline-flex rounded-full bg-amber-400 px-4 py-2 text-sm font-bold text-slate-900 hover:bg-amber-300" href="' . $calendar_url . '">Browse class calendar</a>';
+            echo '<a class="mt-3 inline-flex rounded-full bg-brand-blue px-4 py-2 text-sm font-bold text-white hover:bg-brand-red" href="' . $calendar_url . '">Browse class calendar</a>';
         }
         echo '</header>';
 
         if ( '' !== $flash_message ) {
-            echo '<div class="mt-3 rounded-xl border border-slate-600 bg-slate-800/70 p-3 text-sm text-slate-200">' . esc_html( $flash_message ) . '</div>';
+            echo '<div class="mt-3 rounded-xl border border-brand-blue/25 bg-brand-blue/5 p-3 text-sm text-brand-blue">' . esc_html( $flash_message ) . '</div>';
         }
 
         if ( empty( $rows ) ) {
-            echo '<div class="mt-3 rounded-xl border border-slate-600 bg-slate-800/70 p-3 text-sm text-slate-200">No bookings yet. Use the booking calendar to reserve your seat.</div>';
+            echo '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">No bookings yet. Use the booking calendar to reserve your seat.</div>';
             echo '</section>';
             return (string) ob_get_clean();
         }
@@ -349,23 +532,23 @@ class TQ_Shortcodes {
             $status        = sanitize_key( $row['enrollment_status'] ?? 'active' );
             $status_label  = ucfirst( str_replace( '_', ' ', $status ) );
             $can_cancel    = 'active' === $status;
-            $status_class  = 'bg-slate-700 text-slate-200';
+            $status_class  = 'bg-slate-100 text-slate-700';
             if ( 'active' === $status ) {
-                $status_class = 'bg-emerald-900/60 text-emerald-200';
+                $status_class = 'bg-brand-blue/10 text-brand-blue';
             } elseif ( 'cancelled' === $status ) {
-                $status_class = 'bg-rose-900/50 text-rose-200';
+                $status_class = 'bg-brand-red/10 text-brand-red';
             }
 
-            echo '<article class="rounded-xl border border-slate-600/80 bg-slate-800/70 p-4">';
+            echo '<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">';
             echo '<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">';
             echo '<h3 class="text-lg font-bold text-white">' . esc_html( $row['class_name'] ?? 'Class' ) . '</h3>';
             echo '<span class="inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ' . esc_attr( $status_class ) . '">' . esc_html( $status_label ) . '</span>';
             echo '</div>';
 
-            echo '<p class="mt-2 text-sm text-slate-200"><strong>Course:</strong> ' . esc_html( $row['course_code'] ?? 'N/A' ) . '</p>';
-            echo '<p class="mt-1 text-sm text-slate-200"><strong>Dates:</strong> ' . esc_html( $row['start_date'] ?? '' ) . ' to ' . esc_html( $row['end_date'] ?? '' ) . '</p>';
-            echo '<p class="mt-1 text-sm text-slate-300"><strong>Access:</strong> ' . esc_html( $row['access_start'] ?? '' ) . ' to ' . esc_html( $row['access_end'] ?? '' ) . '</p>';
-            echo '<p class="mt-1 text-sm text-slate-300"><strong>Order:</strong> #' . esc_html( (string) ( $row['woocommerce_order_id'] ?? '' ) ) . '</p>';
+            echo '<p class="mt-2 text-sm text-slate-700"><strong>Course:</strong> ' . esc_html( $row['course_code'] ?? 'N/A' ) . '</p>';
+            echo '<p class="mt-1 text-sm text-slate-700"><strong>Dates:</strong> ' . esc_html( $row['start_date'] ?? '' ) . ' to ' . esc_html( $row['end_date'] ?? '' ) . '</p>';
+            echo '<p class="mt-1 text-sm text-slate-600"><strong>Access:</strong> ' . esc_html( $row['access_start'] ?? '' ) . ' to ' . esc_html( $row['access_end'] ?? '' ) . '</p>';
+            echo '<p class="mt-1 text-sm text-slate-600"><strong>Order:</strong> #' . esc_html( (string) ( $row['woocommerce_order_id'] ?? '' ) ) . '</p>';
 
             echo '<div class="mt-3 flex flex-wrap gap-2">';
 
@@ -374,7 +557,7 @@ class TQ_Shortcodes {
                 wp_nonce_field( 'tq_cancel_enrollment_' . $enrollment_id );
                 echo '<input type="hidden" name="tq_booking_action" value="cancel_enrollment" />';
                 echo '<input type="hidden" name="enrollment_id" value="' . esc_attr( $enrollment_id ) . '" />';
-                echo '<button type="submit" class="inline-flex items-center justify-center rounded-full border border-rose-400/60 bg-rose-900/40 px-3 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-800/50" onclick="return confirm(\'Cancel this booking?\')">Cancel booking</button>';
+                echo '<button type="submit" class="inline-flex items-center justify-center rounded-full border border-brand-red/40 bg-brand-red/10 px-3 py-2 text-sm font-semibold text-brand-red hover:bg-brand-red/20" onclick="return confirm(\'Cancel this booking?\')">Cancel booking</button>';
                 echo '</form>';
 
                 if ( '' !== $calendar_url ) {
@@ -382,17 +565,17 @@ class TQ_Shortcodes {
                     wp_nonce_field( 'tq_cancel_enrollment_' . $enrollment_id );
                     echo '<input type="hidden" name="tq_booking_action" value="change_enrollment" />';
                     echo '<input type="hidden" name="enrollment_id" value="' . esc_attr( $enrollment_id ) . '" />';
-                    echo '<button type="submit" class="inline-flex items-center justify-center rounded-full border border-slate-400/60 bg-slate-700/70 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-600/80" onclick="return confirm(\'Cancel this booking and choose a new date?\')">Change booking</button>';
+                    echo '<button type="submit" class="inline-flex items-center justify-center rounded-full border border-brand-blue/40 bg-brand-blue/10 px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-blue/20" onclick="return confirm(\'Cancel this booking and choose a new date?\')">Change booking</button>';
                     echo '</form>';
                 }
             }
 
             if ( ! $can_cancel && '' !== $calendar_url ) {
-                echo '<a class="inline-flex items-center justify-center rounded-full border border-slate-400/60 bg-slate-700/70 px-3 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-600/80" href="' . $calendar_url . '">Book another class</a>';
+                echo '<a class="inline-flex items-center justify-center rounded-full border border-brand-blue/40 bg-brand-blue/10 px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-blue/20" href="' . $calendar_url . '">Book another class</a>';
             }
 
             if ( ! empty( $row['workbook_url'] ) ) {
-                echo '<a class="inline-flex items-center justify-center rounded-full border border-amber-400/70 bg-amber-400/15 px-3 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-400/25" href="' . esc_url( $row['workbook_url'] ) . '" target="_blank" rel="noopener noreferrer">Workbook</a>';
+                echo '<a class="inline-flex items-center justify-center rounded-full border border-brand-blue/40 bg-white px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-blue/5" href="' . esc_url( $row['workbook_url'] ) . '" target="_blank" rel="noopener noreferrer">Workbook</a>';
             }
 
             echo '</div>';

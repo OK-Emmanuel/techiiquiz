@@ -1,6 +1,25 @@
 # TechiQuiz Phase Checklist Tracker
 
 Date created: 2026-03-03
+**Latest updates: 2026-05-01**
+- Renamed admin menu labels to user-friendly terms:
+  * Courses → Quiz Bank
+  * Sets → Question Groups
+  * Question Bank → Quiz Questions
+  * Importer → Upload Questions
+  * Booking Classes → Training Catalog
+  * Class Instances → Offered Classes
+  * Enrollment Reports → Student Roster
+- Added `[tq_class_details]` shortcode for class review page.
+- Added admin-side custom class rules field when creating/editing a class.
+- Implemented class details modal in booking calendar showing:
+  * Class name, course code, description
+  * Start/end dates, access window (+45 days), capacity, available seats
+  * Full class rules (7 rules from project.md)
+  * Additional class-specific rules entered by admin
+  * Pre-class resource recommendations (Workbook, Pocket Pro Guide, Killsheets, Formula Sheets)
+  * Price and "Reserve My Seat" button before checkout
+- Booking calendar "Book now" button now opens modal instead of direct WooCommerce redirect
 Based on: `docs/implementation-plan.md`
 
 Use this document as the working execution tracker. Mark checkboxes as work completes.
@@ -134,6 +153,7 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - Booking provisioning now sends a dedicated confirmation email with class dates, access window, workbook link, and login details.
 - Refactored booking frontend to Tailwind-first markup/components with minimal fallback CSS.
 - Added `docs/production-go-live.md` with granular setup and launch checklist for immediate production rollout.
+- Updated booking calendar UX to paginated month view with Previous/Next controls and mobile swipe navigation.
 
 ### Execution Tasks
 
