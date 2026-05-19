@@ -72,8 +72,10 @@ Use this document as the working execution tracker. Mark checkboxes as work comp
 - [x] Implement activator/deactivator classes
 - [x] Create schema for required custom tables
 - [x] Build admin page: Courses
+- [x] Hide the course slug field and auto-generate it from the title in the create/edit modal
 - [x] Build admin page: Sets (day/mode)
 - [x] Build admin page: Question bank
+- [x] Apply a shared premium visual system to the remaining TechiQuiz admin pages
 - [x] Add validation: exactly one correct choice per question
 - [x] Add validation: minimum required choices per question
 - [x] Add capability checks (`manage_options` or custom capabilities)

@@ -1,3 +1,465 @@
+/* === TechiQuiz Admin Dashboard — Professional Corporate Design === */
+
+.tq-admin {
+  position: relative;
+  min-height: calc(100vh - 32px);
+  padding: 32px 24px;
+  background: #f9fafb;
+}
+
+.tq-admin.wrap {
+  max-width: 1320px;
+}
+
+/* === Page Title & Header === */
+.tq-admin .tq-title,
+.tq-admin h1.tq-title {
+  margin: 0 0 24px;
+  color: #111827;
+  font-size: 2rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.tq-admin .tq-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 0 20px 0;
+  margin-bottom: 28px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tq-admin .tq-page-head .tq-title {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+/* === Cards & Sections === */
+.tq-admin .tq-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tq-admin .tq-card h2 {
+  margin: 0 0 16px;
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tq-admin .tq-card h3 {
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+.tq-admin .tq-card h3:first-child {
+  margin-top: 0;
+}
+
+.tq-admin .tq-card p,
+.tq-admin .tq-card li,
+.tq-admin .tq-card .description {
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.tq-admin .tq-card ul,
+.tq-admin .tq-card ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tq-admin .tq-card ul li + li,
+.tq-admin .tq-card ol li + li {
+  margin-top: 8px;
+}
+
+.tq-admin .tq-card table {
+  margin-top: 8px;
+}
+
+/* === Form Elements === */
+.tq-admin .tq-card label,
+.tq-admin .tq-modal label {
+  color: #111827;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tq-admin .tq-card input[type="text"],
+.tq-admin .tq-card input[type="number"],
+.tq-admin .tq-card input[type="date"],
+.tq-admin .tq-card input[type="time"],
+.tq-admin .tq-card input[type="url"],
+.tq-admin .tq-card input[type="email"],
+.tq-admin .tq-card select,
+.tq-admin .tq-card textarea,
+.tq-admin .tq-modal input[type="text"],
+.tq-admin .tq-modal input[type="number"],
+.tq-admin .tq-modal input[type="date"],
+.tq-admin .tq-modal input[type="time"],
+.tq-admin .tq-modal input[type="url"],
+.tq-admin .tq-modal input[type="email"],
+.tq-admin .tq-modal select,
+.tq-admin .tq-modal textarea {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+  color: #111827;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.tq-admin .tq-card input[type="text"]:focus,
+.tq-admin .tq-card input[type="number"]:focus,
+.tq-admin .tq-card input[type="date"]:focus,
+.tq-admin .tq-card input[type="time"]:focus,
+.tq-admin .tq-card input[type="url"]:focus,
+.tq-admin .tq-card input[type="email"]:focus,
+.tq-admin .tq-card select:focus,
+.tq-admin .tq-card textarea:focus,
+.tq-admin .tq-modal input[type="text"]:focus,
+.tq-admin .tq-modal input[type="number"]:focus,
+.tq-admin .tq-modal input[type="date"]:focus,
+.tq-admin .tq-modal input[type="time"]:focus,
+.tq-admin .tq-modal input[type="url"]:focus,
+.tq-admin .tq-modal input[type="email"]:focus,
+.tq-admin .tq-modal select:focus,
+.tq-admin .tq-modal textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.tq-admin .tq-card textarea,
+.tq-admin .tq-modal textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.tq-admin .tq-card select,
+.tq-admin .tq-modal select {
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.tq-admin .tq-card input[type="checkbox"],
+.tq-admin .tq-modal input[type="checkbox"] {
+  accent-color: #2563eb;
+}
+
+/* === Tables === */
+.tq-admin .tq-card .widefat,
+.tq-admin .tq-card .widefat thead,
+.tq-admin .tq-card .widefat tbody,
+.tq-admin .tq-card .widefat tfoot {
+  border-color: #e5e7eb;
+}
+
+.tq-admin .tq-modern-table {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.tq-admin .tq-modern-table thead th {
+  background: #f3f4f6;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tq-admin .tq-modern-table tbody td {
+  padding: 12px 14px;
+  color: #111827;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.tq-admin .tq-modern-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tq-admin .tq-modern-table tbody tr:hover td {
+  background: #f9fafb;
+}
+
+/* === Toolbar & Actions === */
+.tq-admin .tq-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tq-admin .tq-toolbar label {
+  margin-right: 8px;
+  color: #111827;
+  font-weight: 600;
+}
+
+.tq-admin .tq-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* === Buttons === */
+.tq-admin .button,
+.tq-admin .submitdelete,
+.tq-admin .button-secondary {
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 150ms;
+}
+
+.tq-admin .button:hover,
+.tq-admin .submitdelete:hover,
+.tq-admin .button-secondary:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.tq-admin .button-primary.tq-btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.tq-admin .button-primary.tq-btn-primary:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.tq-admin .tq-icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  color: #4b5563;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 150ms;
+  margin-right: 0;
+}
+
+.tq-admin .tq-icon-btn:hover {
+  border-color: #9ca3af !important;
+  background: #f3f4f6 !important;
+  color: #111827;
+}
+
+.tq-admin .tq-icon-btn .dashicons {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  line-height: 18px;
+}
+
+.tq-admin .tq-icon-danger {
+  border-color: #fee2e2 !important;
+  color: #dc2626;
+}
+
+.tq-admin .tq-icon-danger:hover {
+  background: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+}
+
+/* === Modals === */
+.tq-admin .tq-modal-dialog {
+  max-width: 720px;
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+}
+
+.tq-admin .tq-modal-head {
+  padding: 20px 24px;
+  margin-bottom: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tq-admin .tq-modal-head h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.tq-admin .tq-modal-head p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.tq-admin .tq-modal-form {
+  padding: 24px;
+}
+
+.tq-admin .tq-modal-form .regular-text,
+.tq-admin .tq-modal-form select,
+.tq-admin .tq-modal-form textarea,
+.tq-admin .tq-modal-form input[type="number"] {
+  width: 100%;
+  max-width: 100%;
+}
+
+.tq-admin .tq-modal-close {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  transition: color 150ms;
+}
+
+.tq-admin .tq-modal-close:hover {
+  color: #111827;
+}
+
+/* === Notices & Alerts === */
+.tq-admin .notice {
+  margin: 0 0 20px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.tq-admin .notice.notice-success {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+  color: #166534;
+}
+
+.tq-admin .notice.notice-error {
+  background: #fef2f2;
+  border-color: #fee2e2;
+  color: #991b1b;
+}
+
+.tq-admin .tq-card .notice {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #4b5563;
+}
+
+/* === Code & Technical === */
+.tq-admin .tq-card code {
+  border-radius: 6px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 3px 8px;
+  color: #111827;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 0.85rem;
+}
+
+/* === Links === */
+.tq-admin .tq-card a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.tq-admin .tq-card a:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+/* === Helper Classes === */
+.tq-admin .tq-toolbar select {
+  min-width: 280px;
+}
+
+.tq-admin .tq-card .alignleft {
+  margin-right: 12px;
+}
+
+.tq-admin .tq-card .alignright {
+  margin-left: 12px;
+}
+
+.tq-admin .tq-card .description {
+  margin-top: 8px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* === Responsive Design === */
+@media (max-width: 782px) {
+  .tq-admin {
+    padding: 20px 16px;
+  }
+
+  .tq-admin .tq-title,
+  .tq-admin h1.tq-title {
+    font-size: 1.5rem;
+  }
+
+  .tq-admin .tq-page-head {
+    flex-direction: column;
+    align-items: stretch;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+
+  .tq-admin .tq-card {
+    padding: 16px;
+  }
+
+  .tq-admin .tq-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tq-admin .tq-toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tq-admin .tq-modern-table {
+    font-size: 0.875rem;
+  }
+
+  .tq-admin .tq-modern-table thead th,
+  .tq-admin .tq-modern-table tbody td {
+    padding: 10px 12px;
+  }
+
+  .tq-admin .tq-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 .tq-admin .tq-modern-table td,
 .tq-admin .tq-modern-table th {
   vertical-align: middle;

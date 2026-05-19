@@ -127,23 +127,23 @@ class TQ_Admin_Menu {
             array( $this, 'render_settings_page' )
         );
 
-        add_submenu_page(
-            'tq-courses',
-            'Integration QA',
-            'Integration QA',
-            'manage_options',
-            'tq-integration-qa',
-            array( $this, 'render_integration_qa_page' )
-        );
+        // add_submenu_page(
+        //     'tq-courses',
+        //     'Integration QA',
+        //     'Integration QA',
+        //     'manage_options',
+        //     'tq-integration-qa',
+        //     array( $this, 'render_integration_qa_page' )
+        // );
 
-        add_submenu_page(
-            'tq-courses',
-            'Launch Readiness',
-            'Launch Readiness',
-            'manage_options',
-            'tq-launch-readiness',
-            array( $this, 'render_launch_readiness_page' )
-        );
+        // add_submenu_page(
+        //     'tq-courses',
+        //     'Launch Readiness',
+        //     'Launch Readiness',
+        //     'manage_options',
+        //     'tq-launch-readiness',
+        //     array( $this, 'render_launch_readiness_page' )
+        // );
     }
 
     public function enqueue_assets( $hook ) {
@@ -219,13 +219,13 @@ class TQ_Admin_Menu {
         wp_nonce_field( 'tq_save_course' );
         echo '<input type="hidden" name="action" value="tq_save_course" />';
         echo '<input type="hidden" name="course_id" value="' . esc_attr( $editing_id ) . '" />';
-        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Slug</label><input class="regular-text !h-11 !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="slug" required value="' . esc_attr( $editing_data['slug'] ?? '' ) . '" /></p>';
-        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Title</label><input class="regular-text !h-11 !rounded-xl !border-slate-300 !px-4 !text-sm focus:!border-brand-blue focus:!ring-brand-blue/20" name="title" required value="' . esc_attr( $editing_data['title'] ?? '' ) . '" /></p>';
+        echo '<input type="hidden" name="slug" value="' . esc_attr( $editing_data['slug'] ?? '' ) . '" data-tq-course-slug />';
+        echo '<p class="space-y-2"><label class="block text-sm font-semibold text-slate-800">Title</label><input class="regular-text !h-11 !rounded-xl !border-2 !border-slate-300 !bg-white !px-4 !text-sm !shadow-sm focus:!border-brand-blue focus:!ring-4 focus:!ring-brand-blue/15" name="title" required value="' . esc_attr( $editing_data['title'] ?? '' ) . '" data-tq-course-title /></p>';
         echo '<p><label class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700"><input type="checkbox" name="active" value="1" ' . checked( isset( $editing_data['active'] ) ? (int) $editing_data['active'] : 1, 1, false ) . ' /> Active</label></p>';
         submit_button( $editing_data ? 'Update Course' : 'Create Course', 'primary tq-btn-primary !m-0 !h-11 !rounded-xl !border-brand-red !bg-brand-red !px-5 !text-sm !font-semibold !text-white hover:!bg-red-700' );
         echo '</form></div></div>';
 
-        echo '<script>(function(){var b=document.body;document.querySelectorAll("[data-tq-open-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-open-modal");var m=document.getElementById(id);if(m){m.classList.add("tq-modal-open");b.classList.add("tq-no-scroll");}});});document.querySelectorAll("[data-tq-close-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-close-modal");var m=document.getElementById(id);if(m){m.classList.remove("tq-modal-open");b.classList.remove("tq-no-scroll");}});});})();</script>';
+        echo '<script>(function(){var b=document.body;var slugify=function(value){return value.toString().toLowerCase().trim().replace(/[^a-z0-9\s-]/g,"").replace(/\s+/g,"-").replace(/-+/g,"-").replace(/^-+|-+$/g,"");};var modal=document.getElementById("tq-course-modal");if(modal){var titleInput=modal.querySelector("[data-tq-course-title]");var slugInput=modal.querySelector("[data-tq-course-slug]");var syncSlug=function(){if(!titleInput||!slugInput){return;}slugInput.value=slugify(titleInput.value);};if(titleInput&&slugInput){titleInput.addEventListener("input",syncSlug);titleInput.addEventListener("change",syncSlug);syncSlug();}}document.querySelectorAll("[data-tq-open-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-open-modal");var m=document.getElementById(id);if(m){m.classList.add("tq-modal-open");b.classList.add("tq-no-scroll");}});});document.querySelectorAll("[data-tq-close-modal]").forEach(function(el){el.addEventListener("click",function(){var id=this.getAttribute("data-tq-close-modal");var m=document.getElementById(id);if(m){m.classList.remove("tq-modal-open");b.classList.remove("tq-no-scroll");}});});})();</script>';
         echo '</div>';
     }
 
@@ -516,7 +516,7 @@ class TQ_Admin_Menu {
         echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" enctype="multipart/form-data">';
         wp_nonce_field( 'tq_run_import' );
         echo '<input type="hidden" name="action" value="tq_run_import" />';
-        echo '<p><label>File</label><input type="file" name="quiz_file" accept=".csv,.xlsx,.xls" required /></p>';
+        echo '<p><label>File</label><input type="file" name="quiz_file" accept=".csv,.xlsx,.xls" required style="padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #ffffff; font-size: 0.9375rem;" /></p>';
         echo '<p><label>Source Group</label><select name="source_group">';
         echo '<option value="">Auto detect</option>';
         echo '<option value="subsea-questions">subsea-questions</option>';
@@ -588,8 +588,8 @@ class TQ_Admin_Menu {
         check_admin_referer( 'tq_save_course' );
 
         $course_id = isset( $_POST['course_id'] ) ? absint( wp_unslash( $_POST['course_id'] ) ) : 0;
-        $slug      = isset( $_POST['slug'] ) ? sanitize_title( wp_unslash( $_POST['slug'] ) ) : '';
         $title     = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
+        $slug      = sanitize_title( $title );
         $active    = isset( $_POST['active'] ) ? 1 : 0;
 
         if ( $course_id > 0 ) {
@@ -845,11 +845,11 @@ class TQ_Admin_Menu {
         wp_nonce_field( 'tq_save_booking_class' );
         echo '<input type="hidden" name="action" value="tq_save_booking_class" />';
         echo '<input type="hidden" name="class_id" value="' . esc_attr( $editing['id'] ?? 0 ) . '" />';
-        echo '<p><label>Name</label><br /><input class="regular-text" name="name" required value="' . esc_attr( $editing['name'] ?? '' ) . '" /></p>';
-        echo '<p><label>Course Code</label><br /><input class="regular-text" name="course_code" required value="' . esc_attr( $editing['course_code'] ?? '' ) . '" /></p>';
-        echo '<p><label>Workbook URL</label><br /><input class="regular-text" type="url" name="workbook_url" value="' . esc_attr( $editing['workbook_url'] ?? '' ) . '" /></p>';
-        echo '<p><label>Description</label><br /><textarea class="large-text" rows="4" name="description">' . esc_textarea( $editing['description'] ?? '' ) . '</textarea></p>';
-        echo '<p><label>Additional Class Rules</label><br /><textarea class="large-text" rows="6" name="class_rules" placeholder="One rule per line">' . esc_textarea( $editing['class_rules'] ?? '' ) . '</textarea></p>';
+        echo '<p><label>Name</label><input class="regular-text" style="padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #ffffff;" name="name" required value="' . esc_attr( $editing['name'] ?? '' ) . '" /></p>';
+        echo '<p><label>Course Code</label><input class="regular-text" style="padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; background: #ffffff;" name="course_code" required value="' . esc_attr( $editing['course_code'] ?? '' ) . '" /></p>';
+        echo '<p><label>Workbook URL</label><input class="regular-text" type="url" name="workbook_url" value="' . esc_attr( $editing['workbook_url'] ?? '' ) . '" /></p>';
+        echo '<p><label>Description</label><textarea class="large-text" rows="4" name="description">' . esc_textarea( $editing['description'] ?? '' ) . '</textarea></p>';
+        echo '<p><label>Additional Class Rules</label><textarea class="large-text" rows="6" name="class_rules" placeholder="One rule per line">' . esc_textarea( $editing['class_rules'] ?? '' ) . '</textarea></p>';
         echo '<p class="description">Default class rules always appear automatically. Use this field for extra rules specific to this class.</p>';
         submit_button( $editing ? 'Update Class' : 'Create Class', 'primary tq-btn-primary' );
         echo '</form>';
@@ -920,14 +920,14 @@ class TQ_Admin_Menu {
         echo '<input type="hidden" name="action" value="tq_save_class_instance" />';
         echo '<input type="hidden" name="instance_id" value="' . esc_attr( $editing['id'] ?? 0 ) . '" />';
 
-        echo '<p><label>Class</label><br /><select name="class_id" required>';
+        echo '<p><label>Class</label><select name="class_id" required>';
         echo '<option value="">Select class</option>';
         foreach ( $classes as $class ) {
             echo '<option value="' . esc_attr( $class['id'] ) . '" ' . selected( (int) ( $editing['class_id'] ?? 0 ), (int) $class['id'], false ) . '>' . esc_html( $class['name'] . ' (' . $class['course_code'] . ')' ) . '</option>';
         }
         echo '</select></p>';
 
-        echo '<p><label>Shop Product</label><br /><select name="woocommerce_product_id" required>';
+        echo '<p><label>Shop Product</label><select name="woocommerce_product_id" required>';
         echo '<option value="">Select product</option>';
         foreach ( $products as $product_id ) {
             $product = wc_get_product( $product_id );
@@ -938,9 +938,9 @@ class TQ_Admin_Menu {
         }
         echo '</select></p>';
 
-        echo '<p><label>Start Date</label><br /><input type="date" name="start_date" required value="' . esc_attr( $editing['start_date'] ?? '' ) . '" /></p>';
-        echo '<p><label>End Date</label><br /><input type="date" name="end_date" required value="' . esc_attr( $editing['end_date'] ?? '' ) . '" /></p>';
-        echo '<p><label>Max Capacity</label><br /><input type="number" min="1" name="max_capacity" required value="' . esc_attr( $editing['max_capacity'] ?? 12 ) . '" /></p>';
+        echo '<p><label>Start Date</label><input type="date" name="start_date" required value="' . esc_attr( $editing['start_date'] ?? '' ) . '" /></p>';
+        echo '<p><label>End Date</label><input type="date" name="end_date" required value="' . esc_attr( $editing['end_date'] ?? '' ) . '" /></p>';
+        echo '<p><label>Max Capacity</label><input type="number" min="1" name="max_capacity" required value="' . esc_attr( $editing['max_capacity'] ?? 12 ) . '" /></p>';
 
         submit_button( $editing ? 'Update Instance' : 'Create Instance', 'primary tq-btn-primary' );
         echo '</form>';
